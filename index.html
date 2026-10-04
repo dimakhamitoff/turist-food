@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Конструктор бланков — Ванильное небо</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+  h2 { text-align: center; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
+  .ai-zone { background: #e8f4fd; border: 2px dashed #3498db; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+  .ai-zone textarea { width: 100%; height: 100px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; resize: vertical; font-family: inherit; }
+  .ai-zone button { background: #3498db; color: #fff; padding: 10px 20px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 8px; font-size: 14px; }
+  #parse-status { display: inline-block; margin-left: 12px; font-size: 13px; font-weight: bold; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+  .fg { display: flex; flex-direction: column; }
+  label { font-weight: bold; font-size: 13px; color: #555; margin-bottom: 4px; }
+  input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; width: 100%; }
+  .tabs { display: flex; gap: 6px; margin: 20px 0 12px; border-bottom: 2px solid #ddd; padding-bottom: 8px; flex-wrap: wrap; }
+  .tab { padding: 8px 14px; border: none; background: #e0e0e0; cursor: pointer; font-weight: bold; border-radius: 4px; font-size: 13px; }
+  .tab.active { background: #3498db; color: white; }
+  .pane { display: none; }
+  .pane.active { display: block; }
+  .row { display: grid; grid-template-columns: 1fr 90px 90px 40px; gap: 8px; margin-bottom: 6px; align-items: center; }
+  .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+  .add { background: #2ecc71; color: #fff; margin-top: 4px; }
+  .del { background: #e74c3c; color: #fff; }
+  .big { display: block; width: 100%; margin-top: 20px; padding: 15px; background: #3498db; color: #fff; font-size: 16px; }
+  .download { display: block; width: 100%; margin-top: 15px; padding: 18px; background: #27ae60; color: #fff; font-size: 18px; border-radius: 4px; }
+  .download:hover { background: #229954; }
+  .copy { display: block; width: 100%; margin-top: 8px; padding: 12px; background: #9b59b6; color: #fff; font-size: 14px; }
+  #preview { display: none; margin-top: 25px; padding: 20px; border: 2px dashed #3498db; border-radius: 6px; background: #fafbfc; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>Конструктор бланков «Ванильное небо»</h2>
+
+  <div class="ai-zone">
+    <label style="font-size:15px;color:#2c3e50;">⚡ Вставь сюда текст заявки от туроператора:</label>
+    <textarea id="ai-input" placeholder="Например: Дата: 03.10.2026 Время: 12:40 Оплата: р/с Кол-во: 55+2 Меню: Салат Оливье с колбасой, Борщ из свежей капусты с курицей со сметаной, Нежная куриная котлета, Картофельное пюре, Чай в ассортименте, Хлеб ржаной/пшеничный"></textarea>
+    <button onclick="parseIncomingText()">🔎 Распознать текст</button>
+    <span id="parse-status"></span>
+  </div>
+
+  <div class="grid">
+    <div class="fg"><label>Турфирма (по центру):</label><input type="text" id="firm" value="Май тур"></div>
+    <div class="fg"><label>Дата:</label><input type="text" id="date" value="07.10"></div>
+    <div class="fg"><label>Время:</label><input type="text" id="time" value="14:00"></div>
+  </div>
+
+  <div class="grid">
+    <div class="fg"><label>Оплата:</label><input type="text" id="payment" value="нал"></div>
+    <div class="fg"><label>Кол-во (текстом, напр. 55 + 2):</label><input type="text" id="cntText" value="34 + 2"></div>
+    <div class="fg"><label>Всего порций (в таблице):</label><input type="number" id="cntTotal" value="36" oninput="recalc()"></div>
+  </div>
+
+  <div class="grid">
+    <div class="fg"><label>Цена сета на 1 чел:</label><input type="number" id="pBase" value="680" oninput="recalc()"></div>
+    <div class="fg"><label>Доплата на 1 чел:</label><input type="number" id="pExtra" value="0" oninput="recalc()"></div>
+    <div class="fg"><label>Итого (авторасчёт):</label><input type="text" id="total" value="24480" readonly style="background:#eee;color:#27ae60;font-weight:bold;"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="main" onclick="switchTab(this)">Основное меню</button>
+    <button class="tab" data-tab="trap" onclick="switchTab(this)">Трапеза по-Ярославски</button>
+    <button class="tab" data-tab="kids" onclick="switchTab(this)">Детское меню</button>
+    <button class="tab" data-tab="add" onclick="switchTab(this)">Десерты и настойки</button>
+  </div>
+
+  <div id="pane-main" class="pane active"><div class="rows"></div><button class="btn add" onclick="addRow('main')">+ Добавить блюдо</button></div>
+  <div id="pane-trap" class="pane"><div class="rows"></div><button class="btn add" onclick="addRow('trap')">+ Добавить блюдо</button></div>
+  <div id="pane-kids" class="pane"><div class="rows"></div><button class="btn add" onclick="addRow('kids')">+ Добавить блюдо</button></div>
+  <div id="pane-add" class="pane"><div class="rows"></div><button class="btn add" onclick="addRow('add')">+ Добавить блюдо</button></div>
+
+  <button class="btn big" onclick="generate()">Сформировать два бланка (предпросмотр)</button>
+
+  <button class="btn download" onclick="downloadWord()">📥 Скачать Word-файл (2 бланка на 1 листе)</button>
+  <button class="btn copy" onclick="copyResult()">📋 Или скопировать всё для Word</button>
+
+  <div id="preview">
+    <div id="output" style="background:#fff;padding:15px;"></div>
+  </div>
+</div>
+
+<script>
+const DB = {
+  main: [
+    {n:"Каша овсяная на молоке / воде", w:"200", a:["каша овсяная"]},
+    {n:"Каша пшенная на молоке / воде", w:"200", a:["каша пшенная"]},
+    {n:"Каша рисовая на молоке / воде", w:"200", a:["каша рисовая"]},
+    {n:"Омлет классический", w:"110", a:["омлет"]},
+    {n:"Омлет с ветчиной и сыром", w:"100", a:["омлет с ветчиной"]},
+    {n:"Омлет с крабовым мясом", w:"100", a:["омлет с крабовым"]},
+    {n:"Блины классические (сгущенка / ягодный джем)", w:"130", a:["блины классические","блины"]},
+    {n:"Сырники (сгущенка / ягодный джем)", w:"130", a:["сырники"]},
+    {n:"Салат из капусты по-домашнему", w:"120", a:["салат из капусты","капуста по-домашнему"]},
+    {n:"Салат Винегрет", w:"120", a:["винегрет"]},
+    {n:"Салат Оливье с колбасой", w:"130", a:["оливье с колбасой","салат оливье с колбасой"]},
+    {n:"Суп-лапша с курицей", w:"250", a:["суп лапша с курицей","лапша с курицей","суп-лапша куриная"]},
+    {n:"Суп-лапша грибная со сметаной или постным майонезом", w:"250/15", a:["суп лапша грибная","лапша грибная"]},
+    {n:"Рассольник с филе цыпленка и сметаной", w:"250/10/15", a:["рассольник"]},
+    {n:"Окрошка на квасе с курицей и сметаной (лето)", w:"250", a:["окрошка"]},
+    {n:"Борщ из свежей капусты с курицей со сметаной", w:"250/15", a:["борщ с курицей","борщ куриный","борщ из свежей капусты с курицей"]},
+    {n:"Свинина шпигованная овощами, тушеная в томатном соусе", w:"100", a:["свинина шпигованная"]},
+    {n:"Зраза мясная с грибами", w:"75", a:["зраза мясная"]},
+    {n:"Зраза из горбуши с луком и яйцом", w:"75", a:["зраза из горбуши","зраза горбуша"]},
+    {n:"Зраза картофельная с грибами", w:"75", a:["зраза картофельная"]},
+    {n:"Котлета Пожарская", w:"90", a:["пожарская","котлета пожарская"]},
+    {n:"Нежная куриная котлета", w:"75", a:["нежная куриная котлета","нежная котлета","куриная котлета"]},
+    {n:"Салат Овощной с кунжутом (лето)", w:"150", a:["салат овощной с кунжутом","овощной с кунжутом"]},
+    {n:"Салат «Домашний» с индейкой", w:"150", a:["салат домашний","домашний с индейкой"]},
+    {n:"Салат «Столичный»", w:"130", a:["столичный","салат столичный"]},
+    {n:"Салат Оливье с ветчиной", w:"150", a:["оливье с ветчиной"]},
+    {n:"Салат «Нежность» из огурцов с курицей, яйцом и майонезом", w:"150", a:["салат нежность","нежность"]},
+    {n:"Салат «Цезарь»", w:"125", a:["цезарь","салат цезарь"]},
+    {n:"Борщ из свежей капусты с говядиной и сметаной", w:"250/10/15", a:["борщ с говядиной","борщ говяжий"]},
+    {n:"Борщ Сибирский с печеной фасолью, говядиной и сметаной", w:"250/10/15", a:["борщ сибирский"]},
+    {n:"Солянка домашняя мясная со сметаной", w:"250/10", a:["солянка"]},
+    {n:"Уха по-Царски из трех видов рыб", w:"250", a:["уха по-царски","уха царская","уха из трех видов рыб","уха из трёх видов рыб"]},
+    {n:"Свинина запеченная с помидорами и сыром", w:"100", a:["свинина запеченная"]},
+    {n:"Свинина «Пикантная»", w:"75", a:["свинина пикантная"]},
+    {n:"Бефстроганов из говядины", w:"50/50", a:["бефстроганов"]},
+    {n:"Гуляш из говядины", w:"100", a:["гуляш"]},
+    {n:"Филе куриное по-Ярославски", w:"100", a:["филе куриное","куриное филе"]},
+    {n:"Фрикасе из курицы", w:"100", a:["фрикасе","фрикассе"]},
+    {n:"Биточек из щуки", w:"75", a:["биточек"]},
+    {n:"Филе минтая на пару", w:"70", a:["минтай на пару"]},
+    {n:"Филе минтая жареное в сухарях", w:"75", a:["минтай жареный","минтай в сухарях"]},
+    {n:"Картофель запеченный", w:"150", a:["картофель запеченный","картошка запеченная"]},
+    {n:"Картофельное пюре", w:"150", a:["пюре","картошка пюре","картофельное пюре"]},
+    {n:"Картофель отварной с зеленью", w:"150", a:["картофель отварной","картошка отварная"]},
+    {n:"Капуста тушеная", w:"150", a:["капуста тушеная"]},
+    {n:"Рис отварной", w:"150", a:["рис отварной"]},
+    {n:"Рис по-Мексикански", w:"150", a:["рис мексиканский","рис по мексикански"]},
+    {n:"Рагу овощное", w:"150", a:["рагу","рагу овощное","овощное рагу"]},
+    {n:"Морс клюквенный", w:"200", a:["морс","морс клюквенный"]},
+    {n:"Чай в ассортименте", w:"150", a:["чай","чай в ассортименте"]},
+    {n:"Чай пакетированный", w:"150", a:["чай пакетированный"]},
+    {n:"Хлеб ржаной / пшеничный", w:"20/20", a:["хлеб ржаной","хлеб пшеничный","хлеб ржаной пшеничный","хлеб пшеничный ржаной","хлеб"]}
+  ],
+  trap: [
+    {n:"Салат Разсол из телятины, сельди, картофеля, свеклы, огурцов, яиц перепелки", w:"150", a:["салат разсол","разсол"]},
+    {n:"Салат из огородных овощей с зеленью (сметана / оливковое масло)", w:"150", a:["салат из огородных овощей"]},
+    {n:"Рулет из курицы с печеным перцем и огурцом (лето/зима)", w:"50/20", a:["рулет из курицы"]},
+    {n:"Студень из телятины с моченой брусникой (зима)", w:"50/20", a:["студень"]},
+    {n:"Капуста квашеная с солеными огурцами (зима)", w:"150", a:["капуста квашеная"]},
+    {n:"Курник по-Ярославски", w:"130", a:["курник"]},
+    {n:"Похлебка рыбацкая из волжской щуки с клецками", w:"290", a:["похлебка рыбацкая"]},
+    {n:"Уха из трех видов рыб", w:"280", a:["уха из трех видов рыб"]},
+    {n:"Щи суточные со свининой и сметаной", w:"250", a:["щи суточные"]},
+    {n:"Щи из щавеля (лето)", w:"250", a:["щи из щавеля","щи"]},
+    {n:"Калья из белых грибов", w:"250", a:["калья"]},
+    {n:"Тельное из волжской щуки с судаком и запеченным картофелем", w:"230", a:["тельное"]},
+    {n:"Судак жареный с полбой и луком-порей, грибной соус", w:"220", a:["судак жареный"]},
+    {n:"Котлета из щуки с картофельным гратеном и соусом из петрушки", w:"250", a:["котлета из щуки"]},
+    {n:"Котлета Пожарского с картофельными медальонами и сливочно-грибным соусом", w:"290", a:["котлета пожарского"]},
+    {n:"Телятина, томленая в печи с мясным соусом и тушеными овощами", w:"230", a:["телятина томленая"]},
+    {n:"Пирожок с капустой и яйцом", w:"50", a:["пирожок с капустой"]},
+    {n:"Ржаной пирожок с соленым огурцом", w:"50", a:["пирожок с огурцом"]},
+    {n:"Ржаной пирожок с грибами", w:"50", a:["пирожок с грибами"]},
+    {n:"Хлебная корзина (черный с изюмом/фундуком, белый со льном)", w:"320", a:["хлебная корзина"]}
+  ],
+  kids: [
+    {n:"Каша овсяная на молоке (390)", w:"200", a:["детский завтрак овсяная"]},
+    {n:"Блины с джемом (390)", w:"130", a:["детские блины с джемом"]},
+    {n:"Блины со сметаной (390)", w:"130", a:["детские блины со сметаной"]},
+    {n:"Омлет (390)", w:"110", a:["детский омлет"]},
+    {n:"Чай пакетированный (390)", w:"150", a:["детский чай"]},
+    {n:"Салат из свежих огурцов и помидоров с маслом (680)", w:"120", a:["детский салат из огурцов"]},
+    {n:"Суп с вермишелью и курицей (680)", w:"250", a:["детский суп с вермишелью","суп с вермишелью и курицей"]},
+    {n:"Картофель отварной (680)", w:"150", a:["детский картофель отварной"]},
+    {n:"Котлета по-домашнему с маслом (680)", w:"75", a:["детская котлета по-домашнему","котлета по домашнему с маслом"]},
+    {n:"Кольцо заварное (680)", w:"50", a:["кольцо заварное"]},
+    {n:"Салат овощной с кунжутом (710)", w:"150", a:["детский салат овощной с кунжутом"]},
+    {n:"Суп картофельный с говядиной (710)", w:"250", a:["детский суп картофельный","суп картофельный с говядиной"]},
+    {n:"Рис отварной (710)", w:"150", a:["детский рис отварной"]},
+    {n:"Фрикасе из курицы (710)", w:"75/30", a:["детское фрикасе"]},
+    {n:"Борщ из свежей капусты с курицей (710)", w:"250", a:["детский борщ с курицей"]},
+    {n:"Картофельное пюре (710)", w:"150", a:["детское картофельное пюре"]},
+    {n:"Бризоль куриная со сливочным соусом (710)", w:"75", a:["бризоль","бризоль куриная"]},
+    {n:"Оливье с курицей (600)", w:"150", a:["оливье с курицей","оливье из курицы","детское оливье с курицей"]},
+    {n:"Спагетти (600)", w:"150", a:["спагетти","детские спагетти"]},
+    {n:"Шницель куриный (600)", w:"75", a:["шницель куриный","шницель","детский шницель"]},
+    {n:"Маффин с шоколадом (600)", w:"80", a:["маффин с шоколадом","маффин шоколадный","маффин","детский маффин"]},
+    {n:"Салат из огурцов и помидоров с маслом (600)", w:"120", a:["салат из огурцов и помидоров с маслом"]},
+    {n:"Тефтели мясные с соусом (600)", w:"100/30", a:["тефтели","тефтели мясные"]},
+    {n:"Хлеб ржаной, пшеничный (дет.)", w:"20/20", a:["детский хлеб"]},
+    {n:"Морс (дет.)", w:"200", a:["детский морс"]}
+  ],
+  add: [
+    {n:"Французские мини-эклеры (в ассортименте) — 120₽", w:"35", a:["эклеры","мини-эклеры","французские эклеры"]},
+    {n:"Мини-медовик — 60₽", w:"50", a:["медовик","мини-медовик"]},
+    {n:"Мини-Опера — 90₽", w:"55", a:["опера","мини-опера"]},
+    {n:"Мини-брауни — 70₽", w:"50", a:["брауни","мини-брауни","мини-Брауни"]},
+    {n:"Мини-Прага — 90₽", w:"50", a:["прага","мини-прага"]},
+    {n:"Мини-Красный бархат — 90₽", w:"60", a:["красный бархат","мини-красный бархат"]},
+    {n:"Сет из 5 фирменных настоек (Хреновуха, Клюква, Вишня, Облепиха, Смородина) — 750₽", w:"5×25", a:["сет из пяти настоек","сет 5 настоек"]},
+    {n:"Сет из 3 фирменных настоек (Хреновуха, Клюква, Смородина) — 450₽", w:"3×25", a:["сет из трех настоек","сет 3 настойки"]}
+  ]
+};
+Object.keys(DB).forEach(k => DB[k].sort((a,b) => a.n.localeCompare(b.n, 'ru')));
+
+function normStr(s) {
+  return String(s).toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[«»"'`()\-–—.,:;!?\/\\\[\]]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function cleanDishName(name) {
+  return String(name)
+    .replace(/\s*—\s*\d+₽\s*$/, '')
+    .replace(/\s*\(\d+\)\s*$/, '')
+    .trim();
+}
+function containsPhrase(haystackNorm, needleNorm) {
+  if (!needleNorm) return false;
+  const escaped = needleNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('(^|\\s)' + escaped + '(?=\\s|$)', 'i');
+  return re.test(haystackNorm);
+}
+function fmtNum(n) {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+function parseIncomingText() {
+  const status = document.getElementById('parse-status');
+  status.textContent = '';
+  try {
+    const raw = document.getElementById('ai-input').value;
+    if (!raw.trim()) { alert('Сначала вставь текст заявки.'); return; }
+
+    const flat = raw.replace(/\s+/g, ' ').trim();
+    const textNorm = normStr(flat);
+
+    // Дата
+    let dateStr = '';
+    let m = flat.match(/дата\s*:?\s*(\d{1,2}[.\-\/]\d{1,2}(?:[.\-\/]\d{2,4})?)/i);
+    if (m) dateStr = m[1];
+    if (!dateStr) {
+      const mm = flat.match(/(\d{1,2})\s+(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)/i);
+      if (mm) {
+        const map = { январ:'01', феврал:'02', март:'03', апрел:'04', ма:'05', мая:'05', июн:'06', июл:'07', август:'08', сентябр:'09', октябр:'10', ноябр:'11', декабр:'12' };
+        let key = mm[2].toLowerCase().substring(0, 5);
+        for (const k of Object.keys(map)) { if (key.startsWith(k.substring(0,3))) { key = k; break; } }
+        const num = map[key];
+        if (num) dateStr = String(mm[1]).padStart(2, '0') + '.' + num;
+      }
+    }
+    if (dateStr) document.getElementById('date').value = dateStr;
+
+    // Время
+    m = flat.match(/\b(\d{1,2}:\d{2})\b/);
+    if (m) document.getElementById('time').value = m[1];
+
+    // Оплата — если нет в тексте, ставим "?"
+    m = flat.match(/оплата\s*:?\s*([^\s,.;]+)/i);
+    if (m) {
+      let pay = m[1].toLowerCase().trim().replace(/\\/g, '/');
+      if (pay === 'рс' || pay === 'р/с') pay = 'р/с';
+      document.getElementById('payment').value = pay;
+    } else {
+      document.getElementById('payment').value = '?';
+    }
+
+    // Кол-во
+    let total = 0;
+    let cntTextStr = '';
+    const detail = flat.match(/(\d+)\s*\(([^)]*)\)/);
+    if (detail && /(гид|водител)/i.test(detail[2])) {
+      const inner = detail[2];
+      const nums = inner.match(/\d+/g) || [];
+      const staff = (/гид/i.test(inner) ? 1 : 0) + (/водител/i.test(inner) ? 1 : 0);
+      const tourists = nums.length ? parseInt(nums[0]) : (parseInt(detail[1]) - staff);
+      cntTextStr = tourists + ' + ' + staff;
+      total = tourists + staff;
+    }
+    if (!cntTextStr) {
+      m = flat.match(/(?:кол-?ву\s+человек|кол-?во|количество(?:\s+человек)?)\s*:?\s*(\d+)(?:\s*\+\s*(\d+))?/i);
+      if (m) {
+        const n1 = parseInt(m[1]);
+        const n2 = m[2] ? parseInt(m[2]) : 0;
+        if (n2 > 0) { cntTextStr = n1 + ' + ' + n2; total = n1 + n2; }
+        else { cntTextStr = String(n1); total = n1; }
+      }
+    }
+    if (!total) {
+      m = flat.match(/(\d+)\s*(?:человек|чел|гост|турист)/i);
+      if (m) { total = parseInt(m[1]); cntTextStr = String(total); }
+    }
+    if (total) document.getElementById('cntTotal').value = total;
+    document.getElementById('cntText').value = cntTextStr || '';
+
+    document.querySelectorAll('.row').forEach(r => r.remove());
+
+    const found = [];
+    const seen = new Set();
+    const log = [];
+    for (const cat of Object.keys(DB)) {
+      for (const dish of DB[cat]) {
+        let matched = false;
+        const clean = cleanDishName(dish.n);
+        const cn = normStr(clean);
+        if (cn && containsPhrase(textNorm, cn)) matched = true;
+        if (!matched && dish.a) {
+          for (const al of dish.a) {
+            const an = normStr(al);
+            if (an && containsPhrase(textNorm, an)) { matched = true; break; }
+          }
+        }
+        if (!matched) continue;
+        const key = normStr(clean);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        found.push({ cat, name: dish.n, w: dish.w });
+        log.push(cleanDishName(dish.n));
+      }
+    }
+
+    found.forEach(d => addRowWithData(d.cat, d.name, d.w));
+    recalc();
+
+    if (found.length === 0) {
+      status.style.color = '#e74c3c';
+      status.textContent = '⚠ Ничего не распознано. Добавь блюда вручную.';
+    } else {
+      status.style.color = '#27ae60';
+      status.textContent = '✓ Найдено ' + found.length + ': ' + log.join(', ');
+    }
+  } catch (e) {
+    console.error(e);
+    status.style.color = '#e74c3c';
+    status.textContent = 'Ошибка: ' + e.message;
+  }
+}
+
+function switchTab(btn){
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+}
+function buildOptions(cat, selectedName) {
+  let opts = '<option value="">— выберите блюдо —</option>';
+  DB[cat].forEach(it => {
+    const safe = it.n.replace(/"/g, '&quot;');
+    const sel = it.n === selectedName ? ' selected' : '';
+    opts += '<option data-w="' + it.w + '" value="' + safe + '"' + sel + '>' + it.n + '</option>';
+  });
+  return opts;
+}
+function addRow(cat) { addRowWithData(cat, '', ''); }
+function addRowWithData(cat, selectedName, weight) {
+  const pane = document.getElementById('pane-' + cat);
+  if (!pane) return;
+  const box = pane.querySelector('.rows');
+  const row = document.createElement('div');
+  row.className = 'row';
+  const currentCount = document.getElementById('cntTotal').value || '';
+  row.innerHTML = '<select onchange="pick(this)">' + buildOptions(cat, selectedName) + '</select>'
+    + '<input type="text" placeholder="Выход" class="w" value="' + (weight || '') + '">'
+    + '<input type="number" placeholder="Кол-во" class="q" value="' + currentCount + '">'
+    + '<button class="btn del" onclick="this.parentNode.remove()">✕</button>';
+  box.appendChild(row);
+}
+function pick(sel) {
+  const w = sel.options[sel.selectedIndex].getAttribute('data-w') || '';
+  sel.parentNode.querySelector('.w').value = w;
+}
+function recalc() {
+  const cnt = parseInt(document.getElementById('cntTotal').value) || 0;
+  const base = parseInt(document.getElementById('pBase').value) || 0;
+  const extra = parseInt(document.getElementById('pExtra').value) || 0;
+  const s1 = base * cnt;
+  const s2 = extra * cnt;
+  let totalStr;
+  if (extra > 0 && s2 > 0) {
+    totalStr = fmtNum(s1) + '+' + fmtNum(s2) + ' =' + fmtNum(s1 + s2);
+  } else {
+    totalStr = fmtNum(s1);
+  }
+  document.getElementById('total').value = totalStr;
+  document.querySelectorAll('.q').forEach(i => { i.value = cnt || ''; });
+}
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+/* ---------- ОДИН БЛАНК (компактный, чтобы 2 уместились на A4) ---------- */
+function buildBlankHtml() {
+  const firm = esc(document.getElementById('firm').value);
+  const date = esc(document.getElementById('date').value);
+  const time = esc(document.getElementById('time').value);
+  const pay = esc(document.getElementById('payment').value);
+  const cntT = esc(document.getElementById('cntText').value);
+  const base = parseInt(document.getElementById('pBase').value) || 0;
+  const extra = parseInt(document.getElementById('pExtra').value) || 0;
+  const total = esc(document.getElementById('total').value);
+  const priceText = extra > 0 ? (base + '+' + extra + ' рублей') : (base + ' рублей');
+
+  let rowsHtml = '';
+  document.querySelectorAll('.row').forEach(r => {
+    const name = r.querySelector('select').value;
+    const w = r.querySelector('.w').value;
+    const q = r.querySelector('.q').value;
+    if (name) {
+      const clean = cleanDishName(name);
+      rowsHtml += '<tr>'
+        + '<td style="border:1pt solid black;padding:1pt 4pt;font-family:\'Arial Narrow\',Arial,sans-serif;font-size:12pt;font-weight:bold;">' + esc(clean) + '</td>'
+        + '<td style="border:1pt solid black;padding:1pt 4pt;text-align:center;font-family:\'Arial Narrow\',Arial,sans-serif;font-size:12pt;font-weight:bold;">' + esc(w) + '</td>'
+        + '<td style="border:1pt solid black;padding:1pt 4pt;text-align:center;font-family:\'Arial Narrow\',Arial,sans-serif;font-size:12pt;font-weight:bold;">' + esc(q) + '</td>'
+        + '</tr>';
+    }
+  });
+
+  const F = "font-family:'Arial Narrow',Arial,sans-serif;font-size:12pt;font-weight:bold;color:#000;";
+  const TH = "border:1pt solid black;padding:1pt 4pt;text-align:center;" + F;
+
+  return ''
+  + '<div style="' + F + 'line-height:1.05;">'
+  + '<p style="text-align:center;margin:0;">' + firm + '</p>'
+  + '<p style="text-align:center;text-decoration:underline;margin:0;">Ресторанно - банкетный комплекс «Ванильное небо»</p>'
+  + '<p style="text-align:center;margin:0;">ЗАЯВКА НА ПИТАНИЕ ТУРИСТОВ</p>'
+  + '<p style="margin:0;">Дата: ' + date + '</p>'
+  + '<p style="margin:0;">Время: ' + time + '</p>'
+  + '<p style="margin:0;">Оплата: ' + pay + '</p>'
+  + '<p style="margin:0;">Кол-во: ' + cntT + '</p>'
+  + '<p style="margin:0;text-decoration:underline;">Обед из расчета на 1 человека: ' + priceText + '</p>'
+  + '<p style="text-align:center;text-decoration:underline;margin:0;">Меню:</p>'
+  + '<table border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:none;width:100%;' + F + '">'
+  +   '<tr>'
+  +     '<td style="vertical-align:top;border:none;padding:0;">'
+  +       '<table border="1" cellspacing="0" cellpadding="2" style="border-collapse:collapse;width:100%;' + F + '">'
+  +         '<tr>'
+  +           '<td style="' + TH + '">Наименование</td>'
+  +           '<td style="' + TH + 'width:70pt;">Выход</td>'
+  +           '<td style="' + TH + 'width:80pt;">Количество</td>'
+  +         '</tr>'
+  +         (rowsHtml || '<tr><td colspan="3" style="border:1pt solid black;padding:1pt 4pt;text-align:center;' + F + '">—</td></tr>')
+  +       '</table>'
+  +     '</td>'
+  +     '<td style="vertical-align:top;border:none;padding:2pt 0 0 14pt;width:150pt;">'
+  +       '<p style="margin:0;">Итого:</p>'
+  +       '<p style="margin:0;">' + total + '</p>'
+  +     '</td>'
+  +   '</tr>'
+  + '</table>'
+  + '</div>';
+}
+
+function generate() {
+  const b = buildBlankHtml();
+  document.getElementById('output').innerHTML =
+    b + '<p style="text-align:center;color:#666;margin:14pt 0;">— — — — — линия реза — — — — —</p>' + b;
+  document.getElementById('preview').style.display = 'block';
+  document.getElementById('preview').scrollIntoView({behavior:'smooth'});
+}
+
+/* ---------- СКАЧИВАНИЕ WORD-ФАЙЛА (два бланка на ОДНОМ листе A4) ---------- */
+function downloadWord() {
+  const b = buildBlankHtml();
+  // Без разрыва страницы! Просто разделитель между бланками.
+  const body = b
+    + '<p style="text-align:center;color:#666;margin:10pt 0 10pt 0;">— — — — — — — — — — линия реза — — — — — — — — — —</p>'
+    + b;
+
+  const html = ''
+  + '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
+  +       'xmlns:w="urn:schemas-microsoft-com:office:word" '
+  +       'xmlns="http://www.w3.org/TR/REC-html40">'
+  + '<head>'
+  + '<meta charset="utf-8">'
+  + '<title>Заявка</title>'
+  + '<!--[if gte mso 9]><xml>'
+  + '<w:WordDocument>'
+  + '<w:View>Print</w:View>'
+  + '<w:Zoom>100</w:Zoom>'
+  + '<w:DoNotOptimizeForBrowser/>'
+  + '</w:WordDocument>'
+  + '</xml><![endif]-->'
+  + '<style>'
+  // Уменьшенные поля — 0.8 см сверху/снизу и 1 см слева/справа,
+  // чтобы два бланка с запасом уместились на одном А4.
+  + '@page Section1 { size: 21.0cm 29.7cm; mso-page-orientation: portrait; margin: 0.8cm 1.0cm 0.8cm 1.0cm; }'
+  + 'div.Section1 { page: Section1; }'
+  + 'body { font-family: "Arial Narrow", Arial, sans-serif; font-size: 12pt; font-weight: bold; color: #000; margin: 0; }'
+  + 'p { margin: 0; line-height: 1.05; }'
+  + 'table { border-collapse: collapse; }'
+  + 'td, th { font-family: "Arial Narrow", Arial, sans-serif; font-size: 12pt; font-weight: bold; }'
+  + '</style>'
+  + '</head>'
+  + '<body><div class="Section1">' + body + '</div></body></html>';
+
+  const firm = (document.getElementById('firm').value || 'Заявка').trim();
+  const date = (document.getElementById('date').value || '').trim();
+  const safeFirm = firm.replace(/[\\\/:*?"<>|]+/g, '_');
+  const fileName = (date ? date + ' ' : '') + safeFirm + '.doc';
+
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+  generate();
+  alert('Файл «' + fileName + '» скачан.\nОткрой двойным кликом — оба бланка должны быть на ОДНОМ листе A4, книжная ориентация, рамка только у таблицы меню.');
+}
+
+async function copyResult() {
+  const node = document.getElementById('output');
+  if (!node.innerHTML.trim()) generate();
+  const html = '<html><head><meta charset="utf-8"></head><body>' + document.getElementById('output').innerHTML + '</body></html>';
+  const text = document.getElementById('output').innerText;
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      const item = new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([text], { type: 'text/plain' })
+      });
+      await navigator.clipboard.write([item]);
+      alert('Скопировано! В Word нажми Ctrl+V.');
+      return;
+    }
+  } catch (e) { console.warn(e); }
+  const range = document.createRange();
+  range.selectNodeContents(document.getElementById('output'));
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) {}
+  sel.removeAllRanges();
+  alert(ok ? 'Скопировано.' : 'Не удалось. Выдели мышкой и нажми Ctrl+C.');
+}
+addRow('main');
+</script>
+</body>
+</html>
