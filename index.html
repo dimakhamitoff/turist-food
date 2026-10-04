@@ -100,7 +100,7 @@ const DB = {
     {n:"Суп-лапша грибная со сметаной или постным майонезом", w:"250/15", a:["суп лапша грибная","лапша грибная"]},
     {n:"Рассольник с филе цыпленка и сметаной", w:"250/10/15", a:["рассольник"]},
     {n:"Окрошка на квасе с курицей и сметаной (лето)", w:"250", a:["окрошка"]},
-    {n:"Борщ из свежей капусты с курицей со сметаной", w:"250/15", a:["борщ с курицей","борщ куриный","борщ из свежей капусты с курицей"]},
+    {n:"Борщ из свежей капусты с курицей со сметаной", w:"250/15", a:["борщ с курицей","борщ куриный"]},
     {n:"Свинина шпигованная овощами, тушеная в томатном соусе", w:"100", a:["свинина шпигованная"]},
     {n:"Зраза мясная с грибами", w:"75", a:["зраза мясная"]},
     {n:"Зраза из горбуши с луком и яйцом", w:"75", a:["зраза из горбуши","зраза горбуша"]},
@@ -134,7 +134,7 @@ const DB = {
     {n:"Рис по-Мексикански", w:"150", a:["рис мексиканский","рис по мексикански"]},
     {n:"Рагу овощное", w:"150", a:["рагу","рагу овощное","овощное рагу"]},
     {n:"Морс клюквенный", w:"200", a:["морс","морс клюквенный"]},
-    {n:"Чай в ассортименте", w:"150", a:["чай","чай в ассортименте"]},
+    {n:"Чай в ассортименте", w:"150", a:["чай в ассортименте","чай"]},
     {n:"Чай пакетированный", w:"150", a:["чай пакетированный"]},
     {n:"Хлеб ржаной / пшеничный", w:"20/20", a:["хлеб ржаной","хлеб пшеничный","хлеб ржаной пшеничный","хлеб пшеничный ржаной","хлеб"]}
   ],
@@ -167,12 +167,12 @@ const DB = {
     {n:"Омлет (390)", w:"110", a:["детский омлет"]},
     {n:"Чай пакетированный (390)", w:"150", a:["детский чай"]},
     {n:"Салат из свежих огурцов и помидоров с маслом (680)", w:"120", a:["детский салат из огурцов"]},
-    {n:"Суп с вермишелью и курицей (680)", w:"250", a:["детский суп с вермишелью","суп с вермишелью и курицей"]},
+    {n:"Суп с вермишелью и курицей (680)", w:"250", a:["детский суп с вермишелью"]},
     {n:"Картофель отварной (680)", w:"150", a:["детский картофель отварной"]},
     {n:"Котлета по-домашнему с маслом (680)", w:"75", a:["детская котлета по-домашнему","котлета по домашнему с маслом"]},
     {n:"Кольцо заварное (680)", w:"50", a:["кольцо заварное"]},
     {n:"Салат овощной с кунжутом (710)", w:"150", a:["детский салат овощной с кунжутом"]},
-    {n:"Суп картофельный с говядиной (710)", w:"250", a:["детский суп картофельный","суп картофельный с говядиной"]},
+    {n:"Суп картофельный с говядиной (710)", w:"250", a:["детский суп картофельный"]},
     {n:"Рис отварной (710)", w:"150", a:["детский рис отварной"]},
     {n:"Фрикасе из курицы (710)", w:"75/30", a:["детское фрикасе"]},
     {n:"Борщ из свежей капусты с курицей (710)", w:"250", a:["детский борщ с курицей"]},
@@ -233,7 +233,7 @@ function parseIncomingText() {
     const flat = raw.replace(/\s+/g, ' ').trim();
     const textNorm = normStr(flat);
 
-    // Дата
+    // --- Дата ---
     let dateStr = '';
     let m = flat.match(/дата\s*:?\s*(\d{1,2}[.\-\/]\d{1,2}(?:[.\-\/]\d{2,4})?)/i);
     if (m) dateStr = m[1];
@@ -249,11 +249,11 @@ function parseIncomingText() {
     }
     if (dateStr) document.getElementById('date').value = dateStr;
 
-    // Время
+    // --- Время ---
     m = flat.match(/\b(\d{1,2}:\d{2})\b/);
     if (m) document.getElementById('time').value = m[1];
 
-    // Оплата — если нет в тексте, ставим "?"
+    // --- Оплата ---
     m = flat.match(/оплата\s*:?\s*([^\s,.;]+)/i);
     if (m) {
       let pay = m[1].toLowerCase().trim().replace(/\\/g, '/');
@@ -263,7 +263,7 @@ function parseIncomingText() {
       document.getElementById('payment').value = '?';
     }
 
-    // Кол-во
+    // --- Количество ---
     let total = 0;
     let cntTextStr = '';
     const detail = flat.match(/(\d+)\s*\(([^)]*)\)/);
@@ -291,41 +291,95 @@ function parseIncomingText() {
     if (total) document.getElementById('cntTotal').value = total;
     document.getElementById('cntText').value = cntTextStr || '';
 
+    // ============================================================
+    // ПОИСК БЛЮД — ИСПРАВЛЕННАЯ ЛОГИКА
+    // ============================================================
     document.querySelectorAll('.row').forEach(r => r.remove());
 
-    const found = [];
-    const seen = new Set();
-    const log = [];
+    // Шаг 1: полные совпадения по всему меню
+    const fullMatches = [];
+    const fullNames = [];
     for (const cat of Object.keys(DB)) {
       for (const dish of DB[cat]) {
-        let matched = false;
         const clean = cleanDishName(dish.n);
         const cn = normStr(clean);
-        if (cn && containsPhrase(textNorm, cn)) matched = true;
-        if (!matched && dish.a) {
-          for (const al of dish.a) {
-            const an = normStr(al);
-            if (an && containsPhrase(textNorm, an)) { matched = true; break; }
-          }
+        if (cn && containsPhrase(textNorm, cn)) {
+          fullMatches.push({ cat, name: dish.n, w: dish.w });
+          fullNames.push({ cat, name: dish.n, cn });
         }
-        if (!matched) continue;
-        const key = normStr(clean);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        found.push({ cat, name: dish.n, w: dish.w });
-        log.push(cleanDishName(dish.n));
       }
     }
 
-    found.forEach(d => addRowWithData(d.cat, d.name, d.w));
+    // Шаг 2: алиасы — только если алиас не перекрыт полным совпадением другого блюда
+    const aliasMatches = [];
+    for (const cat of Object.keys(DB)) {
+      for (const dish of DB[cat]) {
+        const clean = cleanDishName(dish.n);
+        const cn = normStr(clean);
+        // уже нашли по полному — пропускаем
+        if (fullNames.some(f => f.cn === cn)) continue;
+        if (!dish.a) continue;
+        for (const al of dish.a) {
+          const an = normStr(al);
+          if (!an) continue;
+          // алиас содержится внутри чьего-то полного имени — этот алиас «поглощён»
+          let swallowed = false;
+          for (const f of fullNames) {
+            if (f.cn === an) { swallowed = true; break; }
+            if (f.cn.includes(' ' + an + ' ') || f.cn.startsWith(an + ' ') || f.cn.endsWith(' ' + an)) {
+              swallowed = true; break;
+            }
+          }
+          if (swallowed) continue;
+          if (containsPhrase(textNorm, an)) {
+            aliasMatches.push({ cat, name: dish.n, w: dish.w });
+            break;
+          }
+        }
+      }
+    }
+
+    // Шаг 3: объединяем и убираем вложенные дубликаты
+    // (если имя одного блюда целиком содержится в имени другого — оставляем длинное)
+    let all = fullMatches.concat(aliasMatches);
+
+    // Дедуп по нормализованному имени (без учёта регистра)
+    const seen = new Set();
+    all = all.filter(d => {
+      const k = normStr(cleanDishName(d.name));
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+
+    // Убираем вложенные: "Борщ из свежей капусты с курицей" ⊂ "Борщ ... со сметаной"
+    const norm = all.map(d => ({ ...d, cn: normStr(cleanDishName(d.name)) }));
+    const finalList = [];
+    for (let i = 0; i < norm.length; i++) {
+      let isInside = false;
+      for (let j = 0; j < norm.length; j++) {
+        if (i === j) continue;
+        if (norm[j].cn.length > norm[i].cn.length && norm[j].cn.includes(norm[i].cn)) {
+          isInside = true;
+          break;
+        }
+      }
+      if (!isInside) finalList.push(norm[i]);
+    }
+
+    const log = [];
+    finalList.forEach(d => {
+      addRowWithData(d.cat, d.name, d.w);
+      log.push(cleanDishName(d.name));
+    });
     recalc();
 
-    if (found.length === 0) {
+    if (finalList.length === 0) {
       status.style.color = '#e74c3c';
       status.textContent = '⚠ Ничего не распознано. Добавь блюда вручную.';
     } else {
       status.style.color = '#27ae60';
-      status.textContent = '✓ Найдено ' + found.length + ': ' + log.join(', ');
+      status.textContent = '✓ Найдено ' + finalList.length + ': ' + log.join(', ');
     }
   } catch (e) {
     console.error(e);
@@ -384,7 +438,6 @@ function recalc() {
 }
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-/* ---------- ОДИН БЛАНК (компактный, чтобы 2 уместились на A4) ---------- */
 function buildBlankHtml() {
   const firm = esc(document.getElementById('firm').value);
   const date = esc(document.getElementById('date').value);
@@ -454,10 +507,8 @@ function generate() {
   document.getElementById('preview').scrollIntoView({behavior:'smooth'});
 }
 
-/* ---------- СКАЧИВАНИЕ WORD-ФАЙЛА (два бланка на ОДНОМ листе A4) ---------- */
 function downloadWord() {
   const b = buildBlankHtml();
-  // Без разрыва страницы! Просто разделитель между бланками.
   const body = b
     + '<p style="text-align:center;color:#666;margin:10pt 0 10pt 0;">— — — — — — — — — — линия реза — — — — — — — — — —</p>'
     + b;
@@ -477,8 +528,6 @@ function downloadWord() {
   + '</w:WordDocument>'
   + '</xml><![endif]-->'
   + '<style>'
-  // Уменьшенные поля — 0.8 см сверху/снизу и 1 см слева/справа,
-  // чтобы два бланка с запасом уместились на одном А4.
   + '@page Section1 { size: 21.0cm 29.7cm; mso-page-orientation: portrait; margin: 0.8cm 1.0cm 0.8cm 1.0cm; }'
   + 'div.Section1 { page: Section1; }'
   + 'body { font-family: "Arial Narrow", Arial, sans-serif; font-size: 12pt; font-weight: bold; color: #000; margin: 0; }'
@@ -505,7 +554,7 @@ function downloadWord() {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 
   generate();
-  alert('Файл «' + fileName + '» скачан.\nОткрой двойным кликом — оба бланка должны быть на ОДНОМ листе A4, книжная ориентация, рамка только у таблицы меню.');
+  alert('Файл «' + fileName + '» скачан. Открой двойным кликом.');
 }
 
 async function copyResult() {
