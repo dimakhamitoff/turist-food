@@ -37,7 +37,7 @@
 
   <div class="ai-zone">
     <label style="font-size:15px;color:#2c3e50;">⚡ Вставь сюда текст заявки от туроператора:</label>
-    <textarea id="ai-input" placeholder="Например: Дата: 03.10.2026 Время: 12:40 Оплата: р/с Кол-во: 55+2 Меню: Салат Оливье с колбасой, Борщ из свежей капусты с курицей со сметаной, Нежная куриная котлета, Картофельное пюре, Чай в ассортименте, Хлеб ржаной/пшеничный"></textarea>
+    <textarea id="ai-input" placeholder="Например: Дата: 03.10.2026 Время: 12:40 Оплата: р/с Кол-во: 55+2 Меню: Салат Оливье с колбасой, Борщ, Куриная котлетка, Картофельное пюре, Чай, Хлеб, Мини-брауни"></textarea>
     <button onclick="parseIncomingText()">🔎 Распознать текст</button>
     <span id="parse-status"></span>
   </div>
@@ -50,21 +50,21 @@
 
   <div class="grid">
     <div class="fg"><label>Оплата:</label><input type="text" id="payment" value="нал"></div>
-    <div class="fg"><label>Кол-во (текстом, напр. 55 + 2):</label><input type="text" id="cntText" value="34 + 2"></div>
-    <div class="fg"><label>Всего порций (в таблице):</label><input type="number" id="cntTotal" value="36" oninput="recalc()"></div>
+    <div class="fg"><label>Кол-во (текстом, напр. 20 + 2):</label><input type="text" id="cntText" value="20 + 2"></div>
+    <div class="fg"><label>Всего порций (в таблице):</label><input type="number" id="cntTotal" value="22" oninput="recalc()"></div>
   </div>
 
   <div class="grid">
     <div class="fg"><label>Цена сета на 1 чел:</label><input type="number" id="pBase" value="680" oninput="recalc()"></div>
-    <div class="fg"><label>Доплата на 1 чел:</label><input type="number" id="pExtra" value="0" oninput="recalc()"></div>
-    <div class="fg"><label>Итого (авторасчёт):</label><input type="text" id="total" value="24480" readonly style="background:#eee;color:#27ae60;font-weight:bold;"></div>
+    <div class="fg"><label>Доплата вручную (если нужно):</label><input type="number" id="pExtra" value="0" oninput="recalc()"></div>
+    <div class="fg"><label>Итого (авторасчёт):</label><input type="text" id="total" value="" readonly style="background:#eee;color:#27ae60;font-weight:bold;"></div>
   </div>
 
   <div class="tabs">
     <button class="tab active" data-tab="main" onclick="switchTab(this)">Основное меню</button>
     <button class="tab" data-tab="trap" onclick="switchTab(this)">Трапеза по-Ярославски</button>
     <button class="tab" data-tab="kids" onclick="switchTab(this)">Детское меню</button>
-    <button class="tab" data-tab="add" onclick="switchTab(this)">Десерты и настойки</button>
+    <button class="tab" data-tab="add" onclick="switchTab(this)">Десерты и настойки (доплата)</button>
   </div>
 
   <div id="pane-main" class="pane active"><div class="rows"></div><button class="btn add" onclick="addRow('main')">+ Добавить блюдо</button></div>
@@ -100,13 +100,13 @@ const DB = {
     {n:"Суп-лапша грибная со сметаной или постным майонезом", w:"250/15", a:["суп лапша грибная","лапша грибная"]},
     {n:"Рассольник с филе цыпленка и сметаной", w:"250/10/15", a:["рассольник"]},
     {n:"Окрошка на квасе с курицей и сметаной (лето)", w:"250", a:["окрошка"]},
-    {n:"Борщ из свежей капусты с курицей со сметаной", w:"250/15", a:["борщ с курицей","борщ куриный"]},
+    {n:"Борщ из свежей капусты с курицей со сметаной", w:"250/15", a:["борщ с курицей","борщ куриный","борщ"]},
     {n:"Свинина шпигованная овощами, тушеная в томатном соусе", w:"100", a:["свинина шпигованная"]},
     {n:"Зраза мясная с грибами", w:"75", a:["зраза мясная"]},
     {n:"Зраза из горбуши с луком и яйцом", w:"75", a:["зраза из горбуши","зраза горбуша"]},
     {n:"Зраза картофельная с грибами", w:"75", a:["зраза картофельная"]},
     {n:"Котлета Пожарская", w:"90", a:["пожарская","котлета пожарская"]},
-    {n:"Нежная куриная котлета", w:"75", a:["нежная куриная котлета","нежная котлета","куриная котлета"]},
+    {n:"Нежная куриная котлета", w:"75", a:["нежная куриная котлета","нежная котлета","куриная котлета","куриная котлетка","котлетка"]},
     {n:"Салат Овощной с кунжутом (лето)", w:"150", a:["салат овощной с кунжутом","овощной с кунжутом"]},
     {n:"Салат «Домашний» с индейкой", w:"150", a:["салат домашний","домашний с индейкой"]},
     {n:"Салат «Столичный»", w:"130", a:["столичный","салат столичный"]},
@@ -213,6 +213,10 @@ function cleanDishName(name) {
     .replace(/\s*\(\d+\)\s*$/, '')
     .trim();
 }
+function getDessertPrice(name) {
+  const m = String(name).match(/—\s*(\d+)\s*₽/);
+  return m ? parseInt(m[1]) : 0;
+}
 function containsPhrase(haystackNorm, needleNorm) {
   if (!needleNorm) return false;
   const escaped = needleNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -266,15 +270,29 @@ function parseIncomingText() {
     // --- Количество ---
     let total = 0;
     let cntTextStr = '';
+    const staff = (/гид/i.test(flat) ? 1 : 0) + (/водител/i.test(flat) ? 1 : 0);
+
     const detail = flat.match(/(\d+)\s*\(([^)]*)\)/);
     if (detail && /(гид|водител)/i.test(detail[2])) {
       const inner = detail[2];
       const nums = inner.match(/\d+/g) || [];
-      const staff = (/гид/i.test(inner) ? 1 : 0) + (/водител/i.test(inner) ? 1 : 0);
-      const tourists = nums.length ? parseInt(nums[0]) : (parseInt(detail[1]) - staff);
-      cntTextStr = tourists + ' + ' + staff;
-      total = tourists + staff;
+      const staffInner = (/гид/i.test(inner) ? 1 : 0) + (/водител/i.test(inner) ? 1 : 0);
+      const tourists = nums.length ? parseInt(nums[0]) : (parseInt(detail[1]) - staffInner);
+      cntTextStr = tourists + ' + ' + staffInner;
+      total = tourists + staffInner;
     }
+
+    // "22 человека - 20 туристов и гид с водителем"
+    if (!cntTextStr && staff > 0) {
+      const mm = flat.match(/(\d+)\s*турист[а-я]*/i);
+      if (mm) {
+        const tourists = parseInt(mm[1]);
+        cntTextStr = tourists + ' + ' + staff;
+        total = tourists + staff;
+      }
+    }
+
+    // "Кол-во: 55+2"
     if (!cntTextStr) {
       m = flat.match(/(?:кол-?ву\s+человек|кол-?во|количество(?:\s+человек)?)\s*:?\s*(\d+)(?:\s*\+\s*(\d+))?/i);
       if (m) {
@@ -284,6 +302,7 @@ function parseIncomingText() {
         else { cntTextStr = String(n1); total = n1; }
       }
     }
+
     if (!total) {
       m = flat.match(/(\d+)\s*(?:человек|чел|гост|турист)/i);
       if (m) { total = parseInt(m[1]); cntTextStr = String(total); }
@@ -292,11 +311,10 @@ function parseIncomingText() {
     document.getElementById('cntText').value = cntTextStr || '';
 
     // ============================================================
-    // ПОИСК БЛЮД — ИСПРАВЛЕННАЯ ЛОГИКА
+    // ПОИСК БЛЮД
     // ============================================================
     document.querySelectorAll('.row').forEach(r => r.remove());
 
-    // Шаг 1: полные совпадения по всему меню
     const fullMatches = [];
     const fullNames = [];
     for (const cat of Object.keys(DB)) {
@@ -310,23 +328,19 @@ function parseIncomingText() {
       }
     }
 
-    // Шаг 2: алиасы — только если алиас не перекрыт полным совпадением другого блюда
     const aliasMatches = [];
     for (const cat of Object.keys(DB)) {
       for (const dish of DB[cat]) {
         const clean = cleanDishName(dish.n);
         const cn = normStr(clean);
-        // уже нашли по полному — пропускаем
         if (fullNames.some(f => f.cn === cn)) continue;
         if (!dish.a) continue;
         for (const al of dish.a) {
           const an = normStr(al);
           if (!an) continue;
-          // алиас содержится внутри чьего-то полного имени — этот алиас «поглощён»
           let swallowed = false;
           for (const f of fullNames) {
-            if (f.cn === an) { swallowed = true; break; }
-            if (f.cn.includes(' ' + an + ' ') || f.cn.startsWith(an + ' ') || f.cn.endsWith(' ' + an)) {
+            if (f.cn === an || f.cn.includes(' ' + an + ' ') || f.cn.startsWith(an + ' ') || f.cn.endsWith(' ' + an)) {
               swallowed = true; break;
             }
           }
@@ -339,11 +353,7 @@ function parseIncomingText() {
       }
     }
 
-    // Шаг 3: объединяем и убираем вложенные дубликаты
-    // (если имя одного блюда целиком содержится в имени другого — оставляем длинное)
     let all = fullMatches.concat(aliasMatches);
-
-    // Дедуп по нормализованному имени (без учёта регистра)
     const seen = new Set();
     all = all.filter(d => {
       const k = normStr(cleanDishName(d.name));
@@ -352,7 +362,6 @@ function parseIncomingText() {
       return true;
     });
 
-    // Убираем вложенные: "Борщ из свежей капусты с курицей" ⊂ "Борщ ... со сметаной"
     const norm = all.map(d => ({ ...d, cn: normStr(cleanDishName(d.name)) }));
     const finalList = [];
     for (let i = 0; i < norm.length; i++) {
@@ -410,30 +419,51 @@ function addRowWithData(cat, selectedName, weight) {
   const box = pane.querySelector('.rows');
   const row = document.createElement('div');
   row.className = 'row';
+  row.setAttribute('data-cat', cat);
   const currentCount = document.getElementById('cntTotal').value || '';
   row.innerHTML = '<select onchange="pick(this)">' + buildOptions(cat, selectedName) + '</select>'
     + '<input type="text" placeholder="Выход" class="w" value="' + (weight || '') + '">'
-    + '<input type="number" placeholder="Кол-во" class="q" value="' + currentCount + '">'
-    + '<button class="btn del" onclick="this.parentNode.remove()">✕</button>';
+    + '<input type="number" placeholder="Кол-во" class="q" value="' + currentCount + '" oninput="recalc()">'
+    + '<button class="btn del" onclick="this.parentNode.remove(); recalc()">✕</button>';
   box.appendChild(row);
+  recalc();
 }
 function pick(sel) {
   const w = sel.options[sel.selectedIndex].getAttribute('data-w') || '';
   sel.parentNode.querySelector('.w').value = w;
+  recalc();
 }
 function recalc() {
   const cnt = parseInt(document.getElementById('cntTotal').value) || 0;
   const base = parseInt(document.getElementById('pBase').value) || 0;
-  const extra = parseInt(document.getElementById('pExtra').value) || 0;
-  const s1 = base * cnt;
-  const s2 = extra * cnt;
+  const manualExtra = parseInt(document.getElementById('pExtra').value) || 0;
+
+  // Основной сет
+  const setSum = base * cnt;
+
+  // Доплата: вручную + десерты
+  let dessertSum = 0;
+  document.querySelectorAll('.row').forEach(r => {
+    const cat = r.getAttribute('data-cat');
+    if (cat !== 'add') return;
+    const name = r.querySelector('select').value;
+    const qty = parseInt(r.querySelector('.q').value) || 0;
+    if (!name || !qty) return;
+    const price = getDessertPrice(name);
+    dessertSum += price * qty;
+  });
+  const manualSum = manualExtra * cnt;
+  const extraSum = dessertSum + manualSum;
+
   let totalStr;
-  if (extra > 0 && s2 > 0) {
-    totalStr = fmtNum(s1) + '+' + fmtNum(s2) + ' =' + fmtNum(s1 + s2);
+  if (extraSum > 0) {
+    totalStr = fmtNum(setSum) + '+' + fmtNum(extraSum) + ' =' + fmtNum(setSum + extraSum);
   } else {
-    totalStr = fmtNum(s1);
+    totalStr = fmtNum(setSum);
   }
   document.getElementById('total').value = totalStr;
+
+  // Синхронизируем количество во всех строках (кроме уже отредактированных вручную, если cnt не менялся)
   document.querySelectorAll('.q').forEach(i => { i.value = cnt || ''; });
 }
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -490,7 +520,7 @@ function buildBlankHtml() {
   +         (rowsHtml || '<tr><td colspan="3" style="border:1pt solid black;padding:1pt 4pt;text-align:center;' + F + '">—</td></tr>')
   +       '</table>'
   +     '</td>'
-  +     '<td style="vertical-align:top;border:none;padding:2pt 0 0 14pt;width:150pt;">'
+  +     '<td style="vertical-align:top;border:none;padding:2pt 0 0 14pt;width:170pt;">'
   +       '<p style="margin:0;">Итого:</p>'
   +       '<p style="margin:0;">' + total + '</p>'
   +     '</td>'
@@ -584,6 +614,7 @@ async function copyResult() {
   alert(ok ? 'Скопировано.' : 'Не удалось. Выдели мышкой и нажми Ctrl+C.');
 }
 addRow('main');
+recalc();
 </script>
 </body>
 </html>
