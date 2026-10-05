@@ -37,7 +37,7 @@
 
   <div class="ai-zone">
     <label style="font-size:15px;color:#2c3e50;">⚡ Вставь сюда текст заявки от туроператора:</label>
-    <textarea id="ai-input" placeholder="Например: Дата: 03.10.2026 Время: 12:40 Оплата: р/с Кол-во: 55+2 Меню: Салат Оливье с колбасой, Борщ, Куриная котлетка, Картофельное пюре, Чай, Хлеб, Мини-брауни"></textarea>
+    <textarea id="ai-input" placeholder="Например: 22 человека - 20 туристов и гид с водителем. Меню: Салат Винегрет, Борщ, Куриная котлетка, Картофельное пюре, Чай, Хлеб, Мини-брауни"></textarea>
     <button onclick="parseIncomingText()">🔎 Распознать текст</button>
     <span id="parse-status"></span>
   </div>
@@ -49,14 +49,14 @@
   </div>
 
   <div class="grid">
-    <div class="fg"><label>Оплата:</label><input type="text" id="payment" value="нал"></div>
+    <div class="fg"><label>Оплата:</label><input type="text" id="payment" value="?"></div>
     <div class="fg"><label>Кол-во (текстом, напр. 20 + 2):</label><input type="text" id="cntText" value="20 + 2"></div>
     <div class="fg"><label>Всего порций (в таблице):</label><input type="number" id="cntTotal" value="22" oninput="recalc()"></div>
   </div>
 
   <div class="grid">
     <div class="fg"><label>Цена сета на 1 чел:</label><input type="number" id="pBase" value="680" oninput="recalc()"></div>
-    <div class="fg"><label>Доплата вручную (если нужно):</label><input type="number" id="pExtra" value="0" oninput="recalc()"></div>
+    <div class="fg"><label>Доп. плата вручную на 1 чел:</label><input type="number" id="pExtra" value="0" oninput="recalc()"></div>
     <div class="fg"><label>Итого (авторасчёт):</label><input type="text" id="total" value="" readonly style="background:#eee;color:#27ae60;font-weight:bold;"></div>
   </div>
 
@@ -226,6 +226,16 @@ function containsPhrase(haystackNorm, needleNorm) {
 function fmtNum(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
+function dessertPerPersonTotal() {
+  let sum = 0;
+  document.querySelectorAll('.row').forEach(r => {
+    if (r.getAttribute('data-cat') !== 'add') return;
+    const name = r.querySelector('select').value;
+    if (!name) return;
+    sum += getDessertPrice(name);
+  });
+  return sum;
+}
 
 function parseIncomingText() {
   const status = document.getElementById('parse-status');
@@ -237,7 +247,6 @@ function parseIncomingText() {
     const flat = raw.replace(/\s+/g, ' ').trim();
     const textNorm = normStr(flat);
 
-    // --- Дата ---
     let dateStr = '';
     let m = flat.match(/дата\s*:?\s*(\d{1,2}[.\-\/]\d{1,2}(?:[.\-\/]\d{2,4})?)/i);
     if (m) dateStr = m[1];
@@ -253,11 +262,9 @@ function parseIncomingText() {
     }
     if (dateStr) document.getElementById('date').value = dateStr;
 
-    // --- Время ---
     m = flat.match(/\b(\d{1,2}:\d{2})\b/);
     if (m) document.getElementById('time').value = m[1];
 
-    // --- Оплата ---
     m = flat.match(/оплата\s*:?\s*([^\s,.;]+)/i);
     if (m) {
       let pay = m[1].toLowerCase().trim().replace(/\\/g, '/');
@@ -267,7 +274,6 @@ function parseIncomingText() {
       document.getElementById('payment').value = '?';
     }
 
-    // --- Количество ---
     let total = 0;
     let cntTextStr = '';
     const staff = (/гид/i.test(flat) ? 1 : 0) + (/водител/i.test(flat) ? 1 : 0);
@@ -281,8 +287,6 @@ function parseIncomingText() {
       cntTextStr = tourists + ' + ' + staffInner;
       total = tourists + staffInner;
     }
-
-    // "22 человека - 20 туристов и гид с водителем"
     if (!cntTextStr && staff > 0) {
       const mm = flat.match(/(\d+)\s*турист[а-я]*/i);
       if (mm) {
@@ -291,8 +295,6 @@ function parseIncomingText() {
         total = tourists + staff;
       }
     }
-
-    // "Кол-во: 55+2"
     if (!cntTextStr) {
       m = flat.match(/(?:кол-?ву\s+человек|кол-?во|количество(?:\s+человек)?)\s*:?\s*(\d+)(?:\s*\+\s*(\d+))?/i);
       if (m) {
@@ -302,7 +304,6 @@ function parseIncomingText() {
         else { cntTextStr = String(n1); total = n1; }
       }
     }
-
     if (!total) {
       m = flat.match(/(\d+)\s*(?:человек|чел|гост|турист)/i);
       if (m) { total = parseInt(m[1]); cntTextStr = String(total); }
@@ -310,9 +311,6 @@ function parseIncomingText() {
     if (total) document.getElementById('cntTotal').value = total;
     document.getElementById('cntText').value = cntTextStr || '';
 
-    // ============================================================
-    // ПОИСК БЛЮД
-    // ============================================================
     document.querySelectorAll('.row').forEach(r => r.remove());
 
     const fullMatches = [];
@@ -423,7 +421,7 @@ function addRowWithData(cat, selectedName, weight) {
   const currentCount = document.getElementById('cntTotal').value || '';
   row.innerHTML = '<select onchange="pick(this)">' + buildOptions(cat, selectedName) + '</select>'
     + '<input type="text" placeholder="Выход" class="w" value="' + (weight || '') + '">'
-    + '<input type="number" placeholder="Кол-во" class="q" value="' + currentCount + '" oninput="recalc()">'
+    + '<input type="number" placeholder="Кол-во" class="q" value="' + currentCount + '">'
     + '<button class="btn del" onclick="this.parentNode.remove(); recalc()">✕</button>';
   box.appendChild(row);
   recalc();
@@ -438,20 +436,20 @@ function recalc() {
   const base = parseInt(document.getElementById('pBase').value) || 0;
   const manualExtra = parseInt(document.getElementById('pExtra').value) || 0;
 
-  // Основной сет
-  const setSum = base * cnt;
+  // Синхронизируем количество во всех строках (кроме случая, когда пользователь сам ввёл другое)
+  document.querySelectorAll('.q').forEach(i => { i.value = cnt || ''; });
 
-  // Доплата: вручную + десерты
+  // Доплата за десерты (сумма цен × количество)
   let dessertSum = 0;
   document.querySelectorAll('.row').forEach(r => {
-    const cat = r.getAttribute('data-cat');
-    if (cat !== 'add') return;
+    if (r.getAttribute('data-cat') !== 'add') return;
     const name = r.querySelector('select').value;
     const qty = parseInt(r.querySelector('.q').value) || 0;
     if (!name || !qty) return;
-    const price = getDessertPrice(name);
-    dessertSum += price * qty;
+    dessertSum += getDessertPrice(name) * qty;
   });
+
+  const setSum = base * cnt;
   const manualSum = manualExtra * cnt;
   const extraSum = dessertSum + manualSum;
 
@@ -462,9 +460,6 @@ function recalc() {
     totalStr = fmtNum(setSum);
   }
   document.getElementById('total').value = totalStr;
-
-  // Синхронизируем количество во всех строках (кроме уже отредактированных вручную, если cnt не менялся)
-  document.querySelectorAll('.q').forEach(i => { i.value = cnt || ''; });
 }
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
@@ -475,9 +470,15 @@ function buildBlankHtml() {
   const pay = esc(document.getElementById('payment').value);
   const cntT = esc(document.getElementById('cntText').value);
   const base = parseInt(document.getElementById('pBase').value) || 0;
-  const extra = parseInt(document.getElementById('pExtra').value) || 0;
+  const manualExtra = parseInt(document.getElementById('pExtra').value) || 0;
   const total = esc(document.getElementById('total').value);
-  const priceText = extra > 0 ? (base + '+' + extra + ' рублей') : (base + ' рублей');
+
+  // Цена на человека = базовый сет + доплаты
+  const dessertPerPerson = dessertPerPersonTotal();
+  const totalExtraPerPerson = manualExtra + dessertPerPerson;
+  const priceText = totalExtraPerPerson > 0
+    ? (base + '+' + totalExtraPerPerson + ' рублей')
+    : (base + ' рублей');
 
   let rowsHtml = '';
   document.querySelectorAll('.row').forEach(r => {
@@ -497,8 +498,9 @@ function buildBlankHtml() {
   const F = "font-family:'Arial Narrow',Arial,sans-serif;font-size:12pt;font-weight:bold;color:#000;";
   const TH = "border:1pt solid black;padding:1pt 4pt;text-align:center;" + F;
 
+  // Ограничиваем ширину 18 см — точно влезает в A4 при полях 1 см
   return ''
-  + '<div style="' + F + 'line-height:1.05;">'
+  + '<div style="' + F + 'line-height:1.05;width:18cm;">'
   + '<p style="text-align:center;margin:0;">' + firm + '</p>'
   + '<p style="text-align:center;text-decoration:underline;margin:0;">Ресторанно - банкетный комплекс «Ванильное небо»</p>'
   + '<p style="text-align:center;margin:0;">ЗАЯВКА НА ПИТАНИЕ ТУРИСТОВ</p>'
@@ -508,10 +510,10 @@ function buildBlankHtml() {
   + '<p style="margin:0;">Кол-во: ' + cntT + '</p>'
   + '<p style="margin:0;text-decoration:underline;">Обед из расчета на 1 человека: ' + priceText + '</p>'
   + '<p style="text-align:center;text-decoration:underline;margin:0;">Меню:</p>'
-  + '<table border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:none;width:100%;' + F + '">'
+  + '<table border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:none;width:18cm;table-layout:fixed;">'
   +   '<tr>'
-  +     '<td style="vertical-align:top;border:none;padding:0;">'
-  +       '<table border="1" cellspacing="0" cellpadding="2" style="border-collapse:collapse;width:100%;' + F + '">'
+  +     '<td style="vertical-align:top;border:none;padding:0;width:14cm;">'
+  +       '<table border="1" cellspacing="0" cellpadding="2" style="border-collapse:collapse;width:14cm;' + F + '">'
   +         '<tr>'
   +           '<td style="' + TH + '">Наименование</td>'
   +           '<td style="' + TH + 'width:70pt;">Выход</td>'
@@ -520,7 +522,7 @@ function buildBlankHtml() {
   +         (rowsHtml || '<tr><td colspan="3" style="border:1pt solid black;padding:1pt 4pt;text-align:center;' + F + '">—</td></tr>')
   +       '</table>'
   +     '</td>'
-  +     '<td style="vertical-align:top;border:none;padding:2pt 0 0 14pt;width:170pt;">'
+  +     '<td style="vertical-align:top;border:none;padding:2pt 0 0 10pt;width:4cm;">'
   +       '<p style="margin:0;">Итого:</p>'
   +       '<p style="margin:0;">' + total + '</p>'
   +     '</td>'
@@ -543,30 +545,36 @@ function downloadWord() {
     + '<p style="text-align:center;color:#666;margin:10pt 0 10pt 0;">— — — — — — — — — — линия реза — — — — — — — — — —</p>'
     + b;
 
+  // ЖЁСТКАЯ фиксация A4 + портретной ориентации для Word
   const html = ''
   + '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
   +       'xmlns:w="urn:schemas-microsoft-com:office:word" '
   +       'xmlns="http://www.w3.org/TR/REC-html40">'
   + '<head>'
   + '<meta charset="utf-8">'
+  + '<meta name="ProgId" content="Word.Document">'
+  + '<meta name="Generator" content="Microsoft Word 15">'
+  + '<meta name="Originator" content="Microsoft Word 15">'
   + '<title>Заявка</title>'
   + '<!--[if gte mso 9]><xml>'
   + '<w:WordDocument>'
   + '<w:View>Print</w:View>'
   + '<w:Zoom>100</w:Zoom>'
   + '<w:DoNotOptimizeForBrowser/>'
+  + '<w:PaperSrc>0</w:PaperSrc>'
   + '</w:WordDocument>'
   + '</xml><![endif]-->'
   + '<style>'
-  + '@page Section1 { size: 21.0cm 29.7cm; mso-page-orientation: portrait; margin: 0.8cm 1.0cm 0.8cm 1.0cm; }'
-  + 'div.Section1 { page: Section1; }'
+  // Портретная A4, поля 1 см
+  + '@page WordSection1 { size: 21.0cm 29.7cm; mso-page-orientation: portrait; margin: 0.8cm 1.0cm 0.8cm 1.0cm; mso-header-margin: 0.5cm; mso-footer-margin: 0.5cm; }'
+  + 'div.WordSection1 { page: WordSection1; }'
   + 'body { font-family: "Arial Narrow", Arial, sans-serif; font-size: 12pt; font-weight: bold; color: #000; margin: 0; }'
   + 'p { margin: 0; line-height: 1.05; }'
   + 'table { border-collapse: collapse; }'
   + 'td, th { font-family: "Arial Narrow", Arial, sans-serif; font-size: 12pt; font-weight: bold; }'
   + '</style>'
   + '</head>'
-  + '<body><div class="Section1">' + body + '</div></body></html>';
+  + '<body><div class="WordSection1">' + body + '</div></body></html>';
 
   const firm = (document.getElementById('firm').value || 'Заявка').trim();
   const date = (document.getElementById('date').value || '').trim();
