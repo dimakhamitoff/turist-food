@@ -26,7 +26,6 @@
   .del { background: #e74c3c; color: #fff; }
   .big { display: block; width: 100%; margin-top: 20px; padding: 15px; background: #3498db; color: #fff; font-size: 16px; }
   .download { display: block; width: 100%; margin-top: 15px; padding: 18px; background: #27ae60; color: #fff; font-size: 18px; border-radius: 4px; }
-  .download:hover { background: #229954; }
   .copy { display: block; width: 100%; margin-top: 8px; padding: 12px; background: #9b59b6; color: #fff; font-size: 14px; }
   #preview { display: none; margin-top: 25px; padding: 20px; border: 2px dashed #3498db; border-radius: 6px; background: #fafbfc; }
 </style>
@@ -36,28 +35,28 @@
   <h2>Конструктор бланков «Ванильное небо»</h2>
 
   <div class="ai-zone">
-    <label style="font-size:15px;color:#2c3e50;">⚡ Вставь сюда текст заявки от туроператора:</label>
-    <textarea id="ai-input" placeholder="Например: 22 человека - 20 туристов и гид с водителем. Меню: Салат Винегрет, Борщ, Куриная котлетка, Картофельное пюре, Чай, Хлеб, Мини-брауни"></textarea>
+    <label style="font-size:15px;color:#2c3e50;">⚡ Вставь сюда текст заявки:</label>
+    <textarea id="ai-input" placeholder="Например: Просим накрыть 10.10.2026 в 14:00 на группу 40+2 следующее меню: СЕТ по 680 руб (салат оливье с колбасой, борщ, котлета пожарская, картофельное пюре, морс, хлеб)"></textarea>
     <button onclick="parseIncomingText()">🔎 Распознать текст</button>
     <span id="parse-status"></span>
   </div>
 
   <div class="grid">
-    <div class="fg"><label>Турфирма (по центру):</label><input type="text" id="firm" value="Май тур"></div>
-    <div class="fg"><label>Дата:</label><input type="text" id="date" value="07.10"></div>
-    <div class="fg"><label>Время:</label><input type="text" id="time" value="14:00"></div>
+    <div class="fg"><label>Турфирма:</label><input type="text" id="firm" value="Май тур"></div>
+    <div class="fg"><label>Дата:</label><input type="text" id="date" value=""></div>
+    <div class="fg"><label>Время:</label><input type="text" id="time" value=""></div>
   </div>
 
   <div class="grid">
     <div class="fg"><label>Оплата:</label><input type="text" id="payment" value="?"></div>
-    <div class="fg"><label>Кол-во (текстом, напр. 20 + 2):</label><input type="text" id="cntText" value="20 + 2"></div>
-    <div class="fg"><label>Всего порций (в таблице):</label><input type="number" id="cntTotal" value="22" oninput="recalc()"></div>
+    <div class="fg"><label>Кол-во (текстом):</label><input type="text" id="cntText" value=""></div>
+    <div class="fg"><label>Всего порций:</label><input type="number" id="cntTotal" value="0" oninput="recalc()"></div>
   </div>
 
   <div class="grid">
     <div class="fg"><label>Цена сета на 1 чел:</label><input type="number" id="pBase" value="680" oninput="recalc()"></div>
     <div class="fg"><label>Доп. плата вручную на 1 чел:</label><input type="number" id="pExtra" value="0" oninput="recalc()"></div>
-    <div class="fg"><label>Итого (авторасчёт):</label><input type="text" id="total" value="" readonly style="background:#eee;color:#27ae60;font-weight:bold;"></div>
+    <div class="fg"><label>Итого:</label><input type="text" id="total" value="" readonly style="background:#eee;color:#27ae60;font-weight:bold;"></div>
   </div>
 
   <div class="tabs">
@@ -73,13 +72,10 @@
   <div id="pane-add" class="pane"><div class="rows"></div><button class="btn add" onclick="addRow('add')">+ Добавить блюдо</button></div>
 
   <button class="btn big" onclick="generate()">Сформировать два бланка (предпросмотр)</button>
-
   <button class="btn download" onclick="downloadWord()">📥 Скачать Word-файл (2 бланка на 1 листе)</button>
   <button class="btn copy" onclick="copyResult()">📋 Или скопировать всё для Word</button>
 
-  <div id="preview">
-    <div id="output" style="background:#fff;padding:15px;"></div>
-  </div>
+  <div id="preview"><div id="output" style="background:#fff;padding:15px;"></div></div>
 </div>
 
 <script>
@@ -95,7 +91,7 @@ const DB = {
     {n:"Сырники (сгущенка / ягодный джем)", w:"130", a:["сырники"]},
     {n:"Салат из капусты по-домашнему", w:"120", a:["салат из капусты","капуста по-домашнему"]},
     {n:"Салат Винегрет", w:"120", a:["винегрет"]},
-    {n:"Салат Оливье с колбасой", w:"130", a:["оливье с колбасой","салат оливье с колбасой"]},
+    {n:"Салат Оливье с колбасой", w:"130", a:["оливье с колбасой","салат оливье с колбасой","оливье"]},
     {n:"Суп-лапша с курицей", w:"250", a:["суп лапша с курицей","лапша с курицей","суп-лапша куриная"]},
     {n:"Суп-лапша грибная со сметаной или постным майонезом", w:"250/15", a:["суп лапша грибная","лапша грибная"]},
     {n:"Рассольник с филе цыпленка и сметаной", w:"250/10/15", a:["рассольник"]},
@@ -105,7 +101,7 @@ const DB = {
     {n:"Зраза мясная с грибами", w:"75", a:["зраза мясная"]},
     {n:"Зраза из горбуши с луком и яйцом", w:"75", a:["зраза из горбуши","зраза горбуша"]},
     {n:"Зраза картофельная с грибами", w:"75", a:["зраза картофельная"]},
-    {n:"Котлета Пожарская", w:"90", a:["пожарская","котлета пожарская"]},
+    {n:"Котлета Пожарская", w:"90", a:["пожарская","котлета пожарская","котлета пожарского"]},
     {n:"Нежная куриная котлета", w:"75", a:["нежная куриная котлета","нежная котлета","куриная котлета","куриная котлетка","котлетка"]},
     {n:"Салат Овощной с кунжутом (лето)", w:"150", a:["салат овощной с кунжутом","овощной с кунжутом"]},
     {n:"Салат «Домашний» с индейкой", w:"150", a:["салат домашний","домашний с индейкой"]},
@@ -169,7 +165,7 @@ const DB = {
     {n:"Салат из свежих огурцов и помидоров с маслом (680)", w:"120", a:["детский салат из огурцов"]},
     {n:"Суп с вермишелью и курицей (680)", w:"250", a:["детский суп с вермишелью"]},
     {n:"Картофель отварной (680)", w:"150", a:["детский картофель отварной"]},
-    {n:"Котлета по-домашнему с маслом (680)", w:"75", a:["детская котлета по-домашнему","котлета по домашнему с маслом"]},
+    {n:"Котлета по-домашнему с маслом (680)", w:"75", a:["детская котлета по-домашнему"]},
     {n:"Кольцо заварное (680)", w:"50", a:["кольцо заварное"]},
     {n:"Салат овощной с кунжутом (710)", w:"150", a:["детский салат овощной с кунжутом"]},
     {n:"Суп картофельный с говядиной (710)", w:"250", a:["детский суп картофельный"]},
@@ -181,122 +177,113 @@ const DB = {
     {n:"Оливье с курицей (600)", w:"150", a:["оливье с курицей","оливье из курицы","детское оливье с курицей"]},
     {n:"Спагетти (600)", w:"150", a:["спагетти","детские спагетти"]},
     {n:"Шницель куриный (600)", w:"75", a:["шницель куриный","шницель","детский шницель"]},
-    {n:"Маффин с шоколадом (600)", w:"80", a:["маффин с шоколадом","маффин шоколадный","маффин","детский маффин"]},
+    {n:"Маффин с шоколадом (600)", w:"80", a:["маффин с шоколадом","маффин шоколадный","маффин"]},
     {n:"Салат из огурцов и помидоров с маслом (600)", w:"120", a:["салат из огурцов и помидоров с маслом"]},
     {n:"Тефтели мясные с соусом (600)", w:"100/30", a:["тефтели","тефтели мясные"]},
     {n:"Хлеб ржаной, пшеничный (дет.)", w:"20/20", a:["детский хлеб"]},
     {n:"Морс (дет.)", w:"200", a:["детский морс"]}
   ],
   add: [
-    {n:"Французские мини-эклеры (в ассортименте) — 120₽", w:"35", a:["эклеры","мини-эклеры","французские эклеры"]},
+    {n:"Французские мини-эклеры (в ассортименте) — 120₽", w:"35", a:["эклеры","мини-эклеры"]},
     {n:"Мини-медовик — 60₽", w:"50", a:["медовик","мини-медовик"]},
     {n:"Мини-Опера — 90₽", w:"55", a:["опера","мини-опера"]},
-    {n:"Мини-брауни — 70₽", w:"50", a:["брауни","мини-брауни","мини-Брауни"]},
+    {n:"Мини-брауни — 70₽", w:"50", a:["брауни","мини-брауни"]},
     {n:"Мини-Прага — 90₽", w:"50", a:["прага","мини-прага"]},
-    {n:"Мини-Красный бархат — 90₽", w:"60", a:["красный бархат","мини-красный бархат"]},
-    {n:"Сет из 5 фирменных настоек (Хреновуха, Клюква, Вишня, Облепиха, Смородина) — 750₽", w:"5×25", a:["сет из пяти настоек","сет 5 настоек"]},
-    {n:"Сет из 3 фирменных настоек (Хреновуха, Клюква, Смородина) — 450₽", w:"3×25", a:["сет из трех настоек","сет 3 настойки"]}
+    {n:"Мини-Красный бархат — 90₽", w:"60", a:["красный бархат"]},
+    {n:"Сет из 5 фирменных настоек (Хреновуха, Клюква, Вишня, Облепиха, Смородина) — 750₽", w:"5×25", a:["сет из пяти настоек"]},
+    {n:"Сет из 3 фирменных настоек (Хреновуха, Клюква, Смородина) — 450₽", w:"3×25", a:["сет из трех настоек"]}
   ]
 };
 Object.keys(DB).forEach(k => DB[k].sort((a,b) => a.n.localeCompare(b.n, 'ru')));
 
 function normStr(s) {
-  return String(s).toLowerCase()
-    .replace(/ё/g, 'е')
-    .replace(/[«»"'`()\-–—.,:;!?\/\\\[\]]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return String(s).toLowerCase().replace(/ё/g,'е').replace(/[«»"'`()\-–—.,:;!?\/\\\[\]]/g,' ').replace(/\s+/g,' ').trim();
 }
 function cleanDishName(name) {
-  return String(name)
-    .replace(/\s*—\s*\d+₽\s*$/, '')
-    .replace(/\s*\(\d+\)\s*$/, '')
-    .trim();
+  return String(name).replace(/\s*—\s*\d+₽\s*$/,'').replace(/\s*\(\d+\)\s*$/,'').trim();
 }
 function getDessertPrice(name) {
   const m = String(name).match(/—\s*(\d+)\s*₽/);
   return m ? parseInt(m[1]) : 0;
 }
-function containsPhrase(haystackNorm, needleNorm) {
-  if (!needleNorm) return false;
-  const escaped = needleNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp('(^|\\s)' + escaped + '(?=\\s|$)', 'i');
-  return re.test(haystackNorm);
+function containsPhrase(h, n) {
+  if (!n) return false;
+  const esc = n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return new RegExp('(^|\\s)'+esc+'(?=\\s|$)','i').test(h);
 }
-function fmtNum(n) {
-  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-}
+function fmtNum(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,' '); }
 function dessertPerPersonTotal() {
-  let sum = 0;
+  let s = 0;
   document.querySelectorAll('.row').forEach(r => {
     if (r.getAttribute('data-cat') !== 'add') return;
     const name = r.querySelector('select').value;
-    if (!name) return;
-    sum += getDessertPrice(name);
+    if (name) s += getDessertPrice(name);
   });
-  return sum;
+  return s;
 }
 
 function parseIncomingText() {
   const status = document.getElementById('parse-status');
   status.textContent = '';
+  const warnings = [];
   try {
     const raw = document.getElementById('ai-input').value;
     if (!raw.trim()) { alert('Сначала вставь текст заявки.'); return; }
-
-    const flat = raw.replace(/\s+/g, ' ').trim();
+    const flat = raw.replace(/\s+/g,' ').trim();
     const textNorm = normStr(flat);
 
+    // ДАТА
     let dateStr = '';
     let m = flat.match(/дата\s*:?\s*(\d{1,2}[.\-\/]\d{1,2}(?:[.\-\/]\d{2,4})?)/i);
     if (m) dateStr = m[1];
     if (!dateStr) {
+      const dm = flat.match(/\b(\d{1,2}[.\-\/]\d{1,2}(?:[.\-\/]\d{2,4})?)\b/);
+      if (dm) dateStr = dm[1];
+    }
+    if (!dateStr) {
       const mm = flat.match(/(\d{1,2})\s+(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)/i);
       if (mm) {
         const map = { январ:'01', феврал:'02', март:'03', апрел:'04', ма:'05', мая:'05', июн:'06', июл:'07', август:'08', сентябр:'09', октябр:'10', ноябр:'11', декабр:'12' };
-        let key = mm[2].toLowerCase().substring(0, 5);
+        let key = mm[2].toLowerCase().substring(0,5);
         for (const k of Object.keys(map)) { if (key.startsWith(k.substring(0,3))) { key = k; break; } }
-        const num = map[key];
-        if (num) dateStr = String(mm[1]).padStart(2, '0') + '.' + num;
+        if (map[key]) dateStr = String(mm[1]).padStart(2,'0') + '.' + map[key];
       }
     }
     if (dateStr) document.getElementById('date').value = dateStr;
 
+    // ВРЕМЯ
     m = flat.match(/\b(\d{1,2}:\d{2})\b/);
     if (m) document.getElementById('time').value = m[1];
 
+    // ОПЛАТА
     m = flat.match(/оплата\s*:?\s*([^\s,.;]+)/i);
     if (m) {
-      let pay = m[1].toLowerCase().trim().replace(/\\/g, '/');
+      let pay = m[1].toLowerCase().trim().replace(/\\/g,'/');
       if (pay === 'рс' || pay === 'р/с') pay = 'р/с';
       document.getElementById('payment').value = pay;
     } else {
       document.getElementById('payment').value = '?';
     }
 
+    // КОЛИЧЕСТВО
     let total = 0;
     let cntTextStr = '';
     const staff = (/гид/i.test(flat) ? 1 : 0) + (/водител/i.test(flat) ? 1 : 0);
-
     const detail = flat.match(/(\d+)\s*\(([^)]*)\)/);
     if (detail && /(гид|водител)/i.test(detail[2])) {
       const inner = detail[2];
       const nums = inner.match(/\d+/g) || [];
-      const staffInner = (/гид/i.test(inner) ? 1 : 0) + (/водител/i.test(inner) ? 1 : 0);
-      const tourists = nums.length ? parseInt(nums[0]) : (parseInt(detail[1]) - staffInner);
-      cntTextStr = tourists + ' + ' + staffInner;
-      total = tourists + staffInner;
+      const stInner = (/гид/i.test(inner)?1:0) + (/водител/i.test(inner)?1:0);
+      const tour = nums.length ? parseInt(nums[0]) : (parseInt(detail[1]) - stInner);
+      cntTextStr = tour + ' + ' + stInner;
+      total = tour + stInner;
     }
     if (!cntTextStr && staff > 0) {
       const mm = flat.match(/(\d+)\s*турист[а-я]*/i);
-      if (mm) {
-        const tourists = parseInt(mm[1]);
-        cntTextStr = tourists + ' + ' + staff;
-        total = tourists + staff;
-      }
+      if (mm) { const t = parseInt(mm[1]); cntTextStr = t + ' + ' + staff; total = t + staff; }
     }
     if (!cntTextStr) {
-      m = flat.match(/(?:кол-?ву\s+человек|кол-?во|количество(?:\s+человек)?)\s*:?\s*(\d+)(?:\s*\+\s*(\d+))?/i);
+      m = flat.match(/(?:кол-?ву\s+человек|кол-?во|количество(?:\s+человек)?|на\s+группу|групп[аеуы]?|человек|гостей|гост[ья]|туристов|турист)\s*:?\s*(\d+)(?:\s*\+\s*(\d+))?/i);
       if (m) {
         const n1 = parseInt(m[1]);
         const n2 = m[2] ? parseInt(m[2]) : 0;
@@ -304,28 +291,38 @@ function parseIncomingText() {
         else { cntTextStr = String(n1); total = n1; }
       }
     }
+    if (!cntTextStr) {
+      m = flat.match(/\b(\d{1,3})\s*\+\s*(\d{1,2})\b/);
+      if (m) {
+        const after = flat.slice(m.index + m[0].length, m.index + m[0].length + 15);
+        if (!/руб/i.test(after)) {
+          cntTextStr = m[1] + ' + ' + m[2];
+          total = parseInt(m[1]) + parseInt(m[2]);
+        }
+      }
+    }
     if (!total) {
-      m = flat.match(/(\d+)\s*(?:человек|чел|гост|турист)/i);
+      m = flat.match(/\b(\d+)\s*(?:человек|чел|гост|турист)/i);
       if (m) { total = parseInt(m[1]); cntTextStr = String(total); }
     }
-    if (total) document.getElementById('cntTotal').value = total;
-    document.getElementById('cntText').value = cntTextStr || '';
+    if (total) {
+      document.getElementById('cntTotal').value = total;
+      document.getElementById('cntText').value = cntTextStr || '';
+    }
 
+    // ПОИСК БЛЮД
     document.querySelectorAll('.row').forEach(r => r.remove());
-
-    const fullMatches = [];
-    const fullNames = [];
+    const fullMatches = [], fullNames = [];
     for (const cat of Object.keys(DB)) {
       for (const dish of DB[cat]) {
         const clean = cleanDishName(dish.n);
         const cn = normStr(clean);
         if (cn && containsPhrase(textNorm, cn)) {
-          fullMatches.push({ cat, name: dish.n, w: dish.w });
-          fullNames.push({ cat, name: dish.n, cn });
+          fullMatches.push({cat, name: dish.n, w: dish.w});
+          fullNames.push({cat, name: dish.n, cn});
         }
       }
     }
-
     const aliasMatches = [];
     for (const cat of Object.keys(DB)) {
       for (const dish of DB[cat]) {
@@ -338,56 +335,69 @@ function parseIncomingText() {
           if (!an) continue;
           let swallowed = false;
           for (const f of fullNames) {
-            if (f.cn === an || f.cn.includes(' ' + an + ' ') || f.cn.startsWith(an + ' ') || f.cn.endsWith(' ' + an)) {
-              swallowed = true; break;
-            }
+            if (f.cn === an || f.cn.includes(' '+an+' ') || f.cn.startsWith(an+' ') || f.cn.endsWith(' '+an)) { swallowed = true; break; }
           }
           if (swallowed) continue;
-          if (containsPhrase(textNorm, an)) {
-            aliasMatches.push({ cat, name: dish.n, w: dish.w });
-            break;
-          }
+          if (containsPhrase(textNorm, an)) { aliasMatches.push({cat, name: dish.n, w: dish.w}); break; }
         }
       }
     }
-
     let all = fullMatches.concat(aliasMatches);
     const seen = new Set();
-    all = all.filter(d => {
-      const k = normStr(cleanDishName(d.name));
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-
-    const norm = all.map(d => ({ ...d, cn: normStr(cleanDishName(d.name)) }));
-    const finalList = [];
+    all = all.filter(d => { const k = normStr(cleanDishName(d.name)); if (seen.has(k)) return false; seen.add(k); return true; });
+    const norm = all.map(d => ({...d, cn: normStr(cleanDishName(d.name))}));
+    let list = [];
     for (let i = 0; i < norm.length; i++) {
       let isInside = false;
       for (let j = 0; j < norm.length; j++) {
         if (i === j) continue;
-        if (norm[j].cn.length > norm[i].cn.length && norm[j].cn.includes(norm[i].cn)) {
-          isInside = true;
-          break;
+        if (norm[j].cn.length > norm[i].cn.length && norm[j].cn.includes(norm[i].cn)) { isInside = true; break; }
+      }
+      if (!isInside) list.push(norm[i]);
+    }
+
+    // ДОМИНИРУЮЩАЯ КАТЕГОРИЯ
+    const catCount = {};
+    list.forEach(d => { if (d.cat !== 'add') catCount[d.cat] = (catCount[d.cat]||0) + 1; });
+    let dom = null, domCount = 0;
+    for (const c in catCount) if (catCount[c] > domCount) { domCount = catCount[c]; dom = c; }
+
+    // АВТО-ПОДСТАНОВКА ЦЕНЫ
+    if (dom === 'trap' || /трапез/i.test(flat)) {
+      document.getElementById('pBase').value = 1850;
+    } else if (dom === 'main') {
+      if (parseInt(document.getElementById('pBase').value) === 1850) {
+        document.getElementById('pBase').value = 680;
+      }
+    }
+
+    // ЗАМЕНА СПОРНЫХ БЛЮД НА ВЕРСИЮ ИЗ ДОМИНИРУЮЩЕЙ КАТЕГОРИИ
+    if (dom && domCount >= 2) {
+      const result = [];
+      for (const item of list) {
+        if (item.cat === 'add' || item.cat === dom) { result.push(item); continue; }
+        const first3 = normStr(cleanDishName(item.name)).split(' ').slice(0, 3).join(' ');
+        const alt = DB[dom].find(x => normStr(cleanDishName(x.n)).startsWith(first3));
+        if (alt) {
+          const altKey = normStr(cleanDishName(alt.n));
+          if (!result.some(r => normStr(cleanDishName(r.name)) === altKey)) {
+            result.push({ cat: dom, name: alt.n, w: alt.w, cn: altKey });
+          }
+        } else {
+          result.push(item);
         }
       }
-      if (!isInside) finalList.push(norm[i]);
+      list = result;
     }
 
     const log = [];
-    finalList.forEach(d => {
-      addRowWithData(d.cat, d.name, d.w);
-      log.push(cleanDishName(d.name));
-    });
+    list.forEach(d => { addRowWithData(d.cat, d.name, d.w); log.push(cleanDishName(d.name)); });
     recalc();
 
-    if (finalList.length === 0) {
-      status.style.color = '#e74c3c';
-      status.textContent = '⚠ Ничего не распознано. Добавь блюда вручную.';
-    } else {
-      status.style.color = '#27ae60';
-      status.textContent = '✓ Найдено ' + finalList.length + ': ' + log.join(', ');
-    }
+    let statusStr = list.length === 0 ? '⚠ Ничего не найдено.' : '✓ Найдено ' + list.length + ': ' + log.join(', ');
+    if (warnings.length > 0) statusStr += ' | ⚠ ' + warnings.join(', ');
+    status.style.color = (list.length === 0 || warnings.length > 0) ? '#e67e22' : '#27ae60';
+    status.textContent = statusStr;
   } catch (e) {
     console.error(e);
     status.style.color = '#e74c3c';
@@ -404,24 +414,24 @@ function switchTab(btn){
 function buildOptions(cat, selectedName) {
   let opts = '<option value="">— выберите блюдо —</option>';
   DB[cat].forEach(it => {
-    const safe = it.n.replace(/"/g, '&quot;');
+    const safe = it.n.replace(/"/g,'&quot;');
     const sel = it.n === selectedName ? ' selected' : '';
-    opts += '<option data-w="' + it.w + '" value="' + safe + '"' + sel + '>' + it.n + '</option>';
+    opts += '<option data-w="'+it.w+'" value="'+safe+'"'+sel+'>'+it.n+'</option>';
   });
   return opts;
 }
 function addRow(cat) { addRowWithData(cat, '', ''); }
 function addRowWithData(cat, selectedName, weight) {
-  const pane = document.getElementById('pane-' + cat);
+  const pane = document.getElementById('pane-'+cat);
   if (!pane) return;
   const box = pane.querySelector('.rows');
   const row = document.createElement('div');
   row.className = 'row';
   row.setAttribute('data-cat', cat);
   const currentCount = document.getElementById('cntTotal').value || '';
-  row.innerHTML = '<select onchange="pick(this)">' + buildOptions(cat, selectedName) + '</select>'
-    + '<input type="text" placeholder="Выход" class="w" value="' + (weight || '') + '">'
-    + '<input type="number" placeholder="Кол-во" class="q" value="' + currentCount + '">'
+  row.innerHTML = '<select onchange="pick(this)">'+buildOptions(cat, selectedName)+'</select>'
+    + '<input type="text" placeholder="Выход" class="w" value="'+(weight||'')+'">'
+    + '<input type="number" placeholder="Кол-во" class="q" value="'+currentCount+'">'
     + '<button class="btn del" onclick="this.parentNode.remove(); recalc()">✕</button>';
   box.appendChild(row);
   recalc();
@@ -435,11 +445,7 @@ function recalc() {
   const cnt = parseInt(document.getElementById('cntTotal').value) || 0;
   const base = parseInt(document.getElementById('pBase').value) || 0;
   const manualExtra = parseInt(document.getElementById('pExtra').value) || 0;
-
-  // Синхронизируем количество во всех строках (кроме случая, когда пользователь сам ввёл другое)
   document.querySelectorAll('.q').forEach(i => { i.value = cnt || ''; });
-
-  // Доплата за десерты (сумма цен × количество)
   let dessertSum = 0;
   document.querySelectorAll('.row').forEach(r => {
     if (r.getAttribute('data-cat') !== 'add') return;
@@ -448,20 +454,14 @@ function recalc() {
     if (!name || !qty) return;
     dessertSum += getDessertPrice(name) * qty;
   });
-
   const setSum = base * cnt;
   const manualSum = manualExtra * cnt;
   const extraSum = dessertSum + manualSum;
-
-  let totalStr;
-  if (extraSum > 0) {
-    totalStr = fmtNum(setSum) + '+' + fmtNum(extraSum) + ' =' + fmtNum(setSum + extraSum);
-  } else {
-    totalStr = fmtNum(setSum);
-  }
-  document.getElementById('total').value = totalStr;
+  document.getElementById('total').value = extraSum > 0
+    ? fmtNum(setSum) + '+' + fmtNum(extraSum) + ' =' + fmtNum(setSum + extraSum)
+    : fmtNum(setSum);
 }
-function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function buildBlankHtml() {
   const firm = esc(document.getElementById('firm').value);
@@ -472,13 +472,9 @@ function buildBlankHtml() {
   const base = parseInt(document.getElementById('pBase').value) || 0;
   const manualExtra = parseInt(document.getElementById('pExtra').value) || 0;
   const total = esc(document.getElementById('total').value);
-
-  // Цена на человека = базовый сет + доплаты
-  const dessertPerPerson = dessertPerPersonTotal();
-  const totalExtraPerPerson = manualExtra + dessertPerPerson;
-  const priceText = totalExtraPerPerson > 0
-    ? (base + '+' + totalExtraPerPerson + ' рублей')
-    : (base + ' рублей');
+  const dessertPP = dessertPerPersonTotal();
+  const totalExtraPP = manualExtra + dessertPP;
+  const priceText = totalExtraPP > 0 ? (base+'+'+totalExtraPP+' рублей') : (base+' рублей');
 
   let rowsHtml = '';
   document.querySelectorAll('.row').forEach(r => {
@@ -488,43 +484,39 @@ function buildBlankHtml() {
     if (name) {
       const clean = cleanDishName(name);
       rowsHtml += '<tr>'
-        + '<td style="border:1pt solid black;padding:1pt 4pt;font-family:\'Arial Narrow\',Arial,sans-serif;font-size:12pt;font-weight:bold;">' + esc(clean) + '</td>'
-        + '<td style="border:1pt solid black;padding:1pt 4pt;text-align:center;font-family:\'Arial Narrow\',Arial,sans-serif;font-size:12pt;font-weight:bold;">' + esc(w) + '</td>'
-        + '<td style="border:1pt solid black;padding:1pt 4pt;text-align:center;font-family:\'Arial Narrow\',Arial,sans-serif;font-size:12pt;font-weight:bold;">' + esc(q) + '</td>'
+        + '<td style="border:1pt solid black;padding:1pt 4pt;font-family:\'Arial Narrow\',Arial,sans-serif;font-size:12pt;font-weight:bold;">'+esc(clean)+'</td>'
+        + '<td style="border:1pt solid black;padding:1pt 4pt;text-align:center;font-family:\'Arial Narrow\',Arial,sans-serif;font-size:12pt;font-weight:bold;">'+esc(w)+'</td>'
+        + '<td style="border:1pt solid black;padding:1pt 4pt;text-align:center;font-family:\'Arial Narrow\',Arial,sans-serif;font-size:12pt;font-weight:bold;">'+esc(q)+'</td>'
         + '</tr>';
     }
   });
 
   const F = "font-family:'Arial Narrow',Arial,sans-serif;font-size:12pt;font-weight:bold;color:#000;";
-  const TH = "border:1pt solid black;padding:1pt 4pt;text-align:center;" + F;
+  const TH = "border:1pt solid black;padding:1pt 4pt;text-align:center;"+F;
 
-  // Ограничиваем ширину 18 см — точно влезает в A4 при полях 1 см
   return ''
-  + '<div style="' + F + 'line-height:1.05;width:18cm;">'
-  + '<p style="text-align:center;margin:0;">' + firm + '</p>'
+  + '<div style="'+F+'line-height:1.05;">'
+  + '<p style="text-align:center;margin:0;">'+firm+'</p>'
   + '<p style="text-align:center;text-decoration:underline;margin:0;">Ресторанно - банкетный комплекс «Ванильное небо»</p>'
   + '<p style="text-align:center;margin:0;">ЗАЯВКА НА ПИТАНИЕ ТУРИСТОВ</p>'
-  + '<p style="margin:0;">Дата: ' + date + '</p>'
-  + '<p style="margin:0;">Время: ' + time + '</p>'
-  + '<p style="margin:0;">Оплата: ' + pay + '</p>'
-  + '<p style="margin:0;">Кол-во: ' + cntT + '</p>'
-  + '<p style="margin:0;text-decoration:underline;">Обед из расчета на 1 человека: ' + priceText + '</p>'
-  + '<p style="text-align:center;text-decoration:underline;margin:0;">Меню:</p>'
-  + '<table border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:none;width:18cm;table-layout:fixed;">'
+  + '<p style="margin:0;">Дата: '+date+'</p>'
+  + '<p style="margin:0;">Время: '+time+'</p>'
+  + '<p style="margin:0;">Оплата: '+pay+'</p>'
+  + '<p style="margin:0;">Кол-во: '+cntT+'</p>'
+  + '<p style="margin:0;text-decoration:underline;">Обед из расчета на 1 человека: '+priceText+'</p>'
+  + '<table border="0" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;table-layout:fixed;mso-table-lspace:0pt;mso-table-rspace:0pt;">'
   +   '<tr>'
-  +     '<td style="vertical-align:top;border:none;padding:0;width:14cm;">'
-  +       '<table border="1" cellspacing="0" cellpadding="2" style="border-collapse:collapse;width:14cm;' + F + '">'
-  +         '<tr>'
-  +           '<td style="' + TH + '">Наименование</td>'
-  +           '<td style="' + TH + 'width:70pt;">Выход</td>'
-  +           '<td style="' + TH + 'width:80pt;">Количество</td>'
-  +         '</tr>'
-  +         (rowsHtml || '<tr><td colspan="3" style="border:1pt solid black;padding:1pt 4pt;text-align:center;' + F + '">—</td></tr>')
+  +     '<td colspan="2" style="text-align:center;text-decoration:underline;padding:0 0 3pt 0;border:none;'+F+'">Меню:</td>'
+  +   '</tr>'
+  +   '<tr>'
+  +     '<td style="vertical-align:top;border:none;padding:0;width:75%;">'
+  +       '<table border="1" cellspacing="0" cellpadding="2" style="width:100%;border-collapse:collapse;'+F+'">'
+  +         '<tr><td style="'+TH+'">Наименование</td><td style="'+TH+'width:70pt;">Выход</td><td style="'+TH+'width:80pt;">Количество</td></tr>'
+  +         (rowsHtml || '<tr><td colspan="3" style="border:1pt solid black;padding:1pt 4pt;text-align:center;'+F+'">—</td></tr>')
   +       '</table>'
   +     '</td>'
-  +     '<td style="vertical-align:top;border:none;padding:2pt 0 0 10pt;width:4cm;">'
-  +       '<p style="margin:0;">Итого:</p>'
-  +       '<p style="margin:0;">' + total + '</p>'
+  +     '<td style="vertical-align:top;border:none;padding:18pt 0 0 10pt;width:25%;'+F+'">'
+  +       '<p style="margin:0;">Итого:</p><p style="margin:0;">'+total+'</p>'
   +     '</td>'
   +   '</tr>'
   + '</table>'
@@ -541,58 +533,29 @@ function generate() {
 
 function downloadWord() {
   const b = buildBlankHtml();
-  const body = b
-    + '<p style="text-align:center;color:#666;margin:10pt 0 10pt 0;">— — — — — — — — — — линия реза — — — — — — — — — —</p>'
-    + b;
-
-  // ЖЁСТКАЯ фиксация A4 + портретной ориентации для Word
+  const body = b + '<p style="text-align:center;color:#666;margin:10pt 0;">— — — — — — — — — — линия реза — — — — — — — — — —</p>' + b;
   const html = ''
-  + '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
-  +       'xmlns:w="urn:schemas-microsoft-com:office:word" '
-  +       'xmlns="http://www.w3.org/TR/REC-html40">'
-  + '<head>'
-  + '<meta charset="utf-8">'
-  + '<meta name="ProgId" content="Word.Document">'
-  + '<meta name="Generator" content="Microsoft Word 15">'
-  + '<meta name="Originator" content="Microsoft Word 15">'
-  + '<title>Заявка</title>'
-  + '<!--[if gte mso 9]><xml>'
-  + '<w:WordDocument>'
-  + '<w:View>Print</w:View>'
-  + '<w:Zoom>100</w:Zoom>'
-  + '<w:DoNotOptimizeForBrowser/>'
-  + '<w:PaperSrc>0</w:PaperSrc>'
-  + '</w:WordDocument>'
-  + '</xml><![endif]-->'
+  + '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+  + '<head><meta charset="utf-8"><title>Заявка</title>'
+  + '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->'
   + '<style>'
-  // Портретная A4, поля 1 см
-  + '@page WordSection1 { size: 21.0cm 29.7cm; mso-page-orientation: portrait; margin: 0.8cm 1.0cm 0.8cm 1.0cm; mso-header-margin: 0.5cm; mso-footer-margin: 0.5cm; }'
+  + '@page WordSection1 { size: 21.0cm 29.7cm; mso-page-orientation: portrait; margin: 0.8cm 1.0cm 0.8cm 1.0cm; }'
   + 'div.WordSection1 { page: WordSection1; }'
   + 'body { font-family: "Arial Narrow", Arial, sans-serif; font-size: 12pt; font-weight: bold; color: #000; margin: 0; }'
-  + 'p { margin: 0; line-height: 1.05; }'
-  + 'table { border-collapse: collapse; }'
+  + 'p { margin: 0; line-height: 1.05; } table { border-collapse: collapse; }'
   + 'td, th { font-family: "Arial Narrow", Arial, sans-serif; font-size: 12pt; font-weight: bold; }'
-  + '</style>'
-  + '</head>'
-  + '<body><div class="WordSection1">' + body + '</div></body></html>';
-
+  + '</style></head><body><div class="WordSection1">'+body+'</div></body></html>';
   const firm = (document.getElementById('firm').value || 'Заявка').trim();
   const date = (document.getElementById('date').value || '').trim();
-  const safeFirm = firm.replace(/[\\\/:*?"<>|]+/g, '_');
-  const fileName = (date ? date + ' ' : '') + safeFirm + '.doc';
-
-  const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
+  const safeFirm = firm.replace(/[\\\/:*?"<>|]+/g,'_');
+  const fileName = (date ? date+' ' : '') + safeFirm + '.doc';
+  const blob = new Blob(['\ufeff', html], {type:'application/msword;charset=utf-8'});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const a = document.createElement('a'); a.href = url; a.download = fileName;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
-
   generate();
-  alert('Файл «' + fileName + '» скачан. Открой двойным кликом.');
+  alert('Файл «'+fileName+'» скачан.');
 }
 
 async function copyResult() {
@@ -603,23 +566,17 @@ async function copyResult() {
   try {
     if (navigator.clipboard && window.ClipboardItem) {
       const item = new ClipboardItem({
-        'text/html': new Blob([html], { type: 'text/html' }),
-        'text/plain': new Blob([text], { type: 'text/plain' })
+        'text/html': new Blob([html], {type:'text/html'}),
+        'text/plain': new Blob([text], {type:'text/plain'})
       });
       await navigator.clipboard.write([item]);
-      alert('Скопировано! В Word нажми Ctrl+V.');
-      return;
+      alert('Скопировано!'); return;
     }
-  } catch (e) { console.warn(e); }
-  const range = document.createRange();
-  range.selectNodeContents(document.getElementById('output'));
-  const sel = window.getSelection();
+  } catch (e) {}
+  const range = document.createRange(); range.selectNodeContents(node);
+  const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  try { document.execCommand('copy'); alert('Скопировано.'); } catch (e) { alert('Не удалось.'); }
   sel.removeAllRanges();
-  sel.addRange(range);
-  let ok = false;
-  try { ok = document.execCommand('copy'); } catch (e) {}
-  sel.removeAllRanges();
-  alert(ok ? 'Скопировано.' : 'Не удалось. Выдели мышкой и нажми Ctrl+C.');
 }
 addRow('main');
 recalc();
