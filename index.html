@@ -21,11 +21,7 @@
   .pane { display: none; }
   .pane.active { display: block; }
   .row { display: grid; grid-template-columns: 24px 1fr 90px 90px 40px; gap: 8px; margin-bottom: 6px; align-items: center; }
-  .drag-handle {
-    cursor: grab; text-align: center; color: #aaa; font-size: 16px; font-weight: bold;
-    user-select: none; -webkit-user-select: none; padding: 8px 0;
-    border-radius: 3px; transition: background 0.15s, color 0.15s;
-  }
+  .drag-handle { cursor: grab; text-align: center; color: #aaa; font-size: 16px; font-weight: bold; user-select: none; -webkit-user-select: none; padding: 8px 0; border-radius: 3px; transition: background 0.15s, color 0.15s; }
   .drag-handle:hover { background: #f0f0f0; color: #555; }
   .drag-handle:active { cursor: grabbing; }
   .row.dragging { opacity: 0.4; background: #f5faff; }
@@ -35,7 +31,14 @@
   .big { display: block; width: 100%; margin-top: 20px; padding: 15px; background: #3498db; color: #fff; font-size: 16px; }
   .download { display: block; width: 100%; margin-top: 15px; padding: 18px; background: #27ae60; color: #fff; font-size: 18px; border-radius: 4px; }
   .copy { display: block; width: 100%; margin-top: 8px; padding: 12px; background: #9b59b6; color: #fff; font-size: 14px; }
+  .excel-btn { display: block; width: 100%; margin-top: 12px; padding: 14px; background: #1e88e5; color: #fff; font-size: 15px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; }
+  .excel-btn:hover { background: #1565c0; }
   #preview { display: none; margin-top: 25px; padding: 20px; border: 2px dashed #3498db; border-radius: 6px; background: #fafbfc; }
+  .acc-zone { background: #fff8e1; border: 2px solid #f39c12; border-radius: 6px; padding: 15px; margin-top: 20px; }
+  .acc-zone label { color: #b9770e; font-size: 14px; }
+  .acc-zone textarea { width: 100%; height: 50px; padding: 10px; border: 1px solid #f39c12; border-radius: 4px; font-size: 15px; box-sizing: border-box; resize: vertical; font-family: 'Consolas', monospace; background: #fff; }
+  .acc-copy { display: block; width: 100%; margin-top: 8px; padding: 12px; background: #f39c12; color: #fff; font-size: 14px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; }
+  .acc-copy:hover { background: #e67e22; }
 </style>
 </head>
 <body>
@@ -50,14 +53,14 @@
   </div>
 
   <div class="grid">
-    <div class="fg"><label>Турфирма:</label><input type="text" id="firm" value="Май тур"></div>
+    <div class="fg"><label>Турфирма:</label><input type="text" id="firm" value="" placeholder="Впишите вручную" oninput="updateAccMsg()"></div>
     <div class="fg"><label>Дата:</label><input type="text" id="date" value=""></div>
     <div class="fg"><label>Время:</label><input type="text" id="time" value=""></div>
   </div>
 
   <div class="grid">
     <div class="fg"><label>Оплата:</label><input type="text" id="payment" value="?"></div>
-    <div class="fg"><label>Кол-во (текстом):</label><input type="text" id="cntText" value=""></div>
+    <div class="fg"><label>Кол-во (текстом):</label><input type="text" id="cntText" value="" oninput="onCntTextInput()"></div>
     <div class="fg"><label>Всего порций:</label><input type="number" id="cntTotal" value="0" oninput="recalc()"></div>
   </div>
 
@@ -82,6 +85,13 @@
   <button class="btn big" onclick="generate()">Сформировать два бланка (предпросмотр)</button>
   <button class="btn download" onclick="downloadWord()">📥 Скачать Word-файл (2 бланка на 1 листе)</button>
   <button class="btn copy" onclick="copyResult()">📋 Или скопировать всё для Word</button>
+  <button class="excel-btn" onclick="copyExcelRow()">📊 Строка для Excel (вставить в таблицу)</button>
+
+  <div class="acc-zone">
+    <label>💬 Сообщение бухгалтеру (Макс):</label>
+    <textarea id="acc-msg" readonly placeholder="Заполните турфирму, количество и цену"></textarea>
+    <button class="acc-copy" onclick="copyAccMsg()">📋 Скопировать сообщение бухгалтеру</button>
+  </div>
 
   <div id="preview"><div id="output" style="background:#fff;padding:15px;"></div></div>
 </div>
@@ -204,9 +214,26 @@ const DB = {
 };
 Object.keys(DB).forEach(k => DB[k].sort((a,b) => a.n.localeCompare(b.n, 'ru')));
 
-/* ========= ФЛАГ РУЧНОГО ПОРЯДКА ========= */
+const KNOWN_FIRMS = [
+  "Артикул тур", "Артикул",
+  "Тыотор", "Тьютор",
+  "Туроператор София/Исток", "Сопровождение София", "София",
+  "АМК-Вояж", "АМК Вояж", "АМК",
+  "Классные туры",
+  "Ярослав Мудрый",
+  "Май тур", "Май-тур", "МАЙ-ТУР",
+  "Европа тур",
+  "Русская Классика",
+  "Ярославское бюро путешествий и экскурсий",
+  "Марина Лесная", "Марина лабup",
+  "Солнечное путешествие",
+  "Ирина Темерева",
+  "Дворец молодежи", "Дворец молодёжи",
+  "Ярославль тур", "ЯрВолгаТур", "ЯрВолга",
+  "ИДиС", "Русь", "ВЕКША", "ООО ЯТО", "Т/К Акварели", "Атлант-тур"
+];
+
 let manualSortDone = false;
-/* ======================================== */
 
 function normStr(s) {
   return String(s).toLowerCase().replace(/ё/g,'е').replace(/[«»"'`()\-–—.,:;!?\/\\\[\]]/g,' ').replace(/\s+/g,' ').trim();
@@ -234,11 +261,9 @@ function dessertPerPersonTotal() {
   return s;
 }
 
-/* ========= КЛАССИФИКАЦИЯ БЛЮД ДЛЯ АВТО-ПОРЯДКА ========= */
 function dishOrder(name) {
   let n = normStr(cleanDishName(name));
   n = n.replace(/^детский\s+/, '').replace(/^детское\s+/, '').replace(/^детская\s+/, '');
-
   if (/эклер|медовик|опера|брауни|прага|бархат|настойк|сет из/.test(n)) return 90;
   if (/^салат|^винегрет|^оливье|разсол/.test(n)) return 10;
   if (/рулет из курицы|^студень|капуста квашеная|^курник/.test(n)) return 15;
@@ -251,11 +276,9 @@ function dishOrder(name) {
   return 35;
 }
 
-/* Собирает все строки из всех вкладок и сортирует их для бланка */
 function collectRowsSorted() {
   const all = Array.from(document.querySelectorAll('.row'));
-  if (manualSortDone) return all; // пользователь сам расставил — не трогаем
-  // Стабильная сортировка: строки без имени — в конец
+  if (manualSortDone) return all;
   return all.slice().sort((a, b) => {
     const na = a.querySelector('select').value;
     const nb = b.querySelector('select').value;
@@ -266,42 +289,26 @@ function collectRowsSorted() {
   });
 }
 
-/* ========= ПЕРЕТАСКИВАНИЕ СТРОК ========= */
 let draggingRow = null;
 let dragStarted = false;
 
 function makeDraggable(row) {
   const handle = row.querySelector('.drag-handle');
   if (!handle) return;
-
-  handle.addEventListener('mousedown', () => {
-    row.draggable = true;
-    dragStarted = false;
-  });
-
+  handle.addEventListener('mousedown', () => { row.draggable = true; dragStarted = false; });
   handle.addEventListener('mouseup', () => {
-    setTimeout(() => {
-      if (!dragStarted) row.draggable = false;
-    }, 50);
+    setTimeout(() => { if (!dragStarted) row.draggable = false; }, 50);
   });
-
   row.addEventListener('dragstart', (e) => {
-    dragStarted = true;
-    draggingRow = row;
-    row.classList.add('dragging');
+    dragStarted = true; draggingRow = row; row.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     try { e.dataTransfer.setData('text/plain', ''); } catch(err) {}
   });
-
   row.addEventListener('dragend', () => {
-    draggingRow = null;
-    dragStarted = false;
-    row.draggable = false;
+    draggingRow = null; dragStarted = false; row.draggable = false;
     row.classList.remove('dragging');
-    // С этого момента порядок считается «ручным» — автосортировка отключается
     manualSortDone = true;
   });
-
   row.addEventListener('dragover', (e) => {
     if (!draggingRow || draggingRow === row) return;
     if (draggingRow.parentNode !== row.parentNode) return;
@@ -309,28 +316,153 @@ function makeDraggable(row) {
     e.dataTransfer.dropEffect = 'move';
     const rect = row.getBoundingClientRect();
     const mid = rect.top + rect.height / 2;
-    if (e.clientY < mid) {
-      row.parentNode.insertBefore(draggingRow, row);
-    } else {
-      row.parentNode.insertBefore(draggingRow, row.nextSibling);
-    }
+    if (e.clientY < mid) row.parentNode.insertBefore(draggingRow, row);
+    else row.parentNode.insertBefore(draggingRow, row.nextSibling);
   });
-
   row.addEventListener('drop', (e) => { e.preventDefault(); });
 }
-/* ======================================== */
+
+function findFirmInText(textNorm) {
+  const sorted = KNOWN_FIRMS.slice().sort((a,b) => b.length - a.length);
+  for (const name of sorted) {
+    const an = normStr(name);
+    if (containsPhrase(textNorm, an)) return name;
+  }
+  return '';
+}
+
+function onCntTextInput() {
+  const val = document.getElementById('cntText').value.trim();
+  let sum = 0;
+  let found = false;
+  const mSum = val.match(/(\d+)\s*\+\s*(\d+)/);
+  if (mSum) { sum = parseInt(mSum[1]) + parseInt(mSum[2]); found = true; }
+  else {
+    const mOne = val.match(/(\d+)/);
+    if (mOne) { sum = parseInt(mOne[1]); found = true; }
+  }
+  if (found && sum > 0) {
+    document.getElementById('cntTotal').value = sum;
+    recalc();
+  }
+}
+
+function updateAccMsg() {
+  const firm = document.getElementById('firm').value.trim();
+  const cnt = parseInt(document.getElementById('cntTotal').value) || 0;
+  const base = parseInt(document.getElementById('pBase').value) || 0;
+  const manualExtra = parseInt(document.getElementById('pExtra').value) || 0;
+  const dessertPP = dessertPerPersonTotal();
+  const pricePerPerson = base + manualExtra + dessertPP;
+  const total = pricePerPerson * cnt;
+
+  const acc = document.getElementById('acc-msg');
+  if (!cnt || !pricePerPerson) { acc.value = ''; return; }
+  acc.value = firm + ' - ' + cnt + 'x' + pricePerPerson + '=' + total;
+}
+
+function copyAccMsg() {
+  const val = document.getElementById('acc-msg').value;
+  if (!val) { alert('Сообщение пустое — заполни турфирму, количество и цену.'); return; }
+  navigator.clipboard.writeText(val).then(() => {
+    alert('Скопировано:\n' + val);
+  }).catch(() => {
+    const ta = document.getElementById('acc-msg');
+    ta.select();
+    document.execCommand('copy');
+    alert('Скопировано:\n' + val);
+  });
+}
+
+/* ========= СТРОКА ДЛЯ EXCEL ========= */
+function copyExcelRow() {
+  const date = document.getElementById('date').value.trim();
+  const firm = document.getElementById('firm').value.trim();
+  const time = document.getElementById('time').value.trim();
+  const cnt = parseInt(document.getElementById('cntTotal').value) || 0;
+  const base = parseInt(document.getElementById('pBase').value) || 0;
+  const manualExtra = parseInt(document.getElementById('pExtra').value) || 0;
+  const pay = document.getElementById('payment').value.trim();
+  const dessertPP = dessertPerPersonTotal();
+
+  const pricePerPerson = base + manualExtra + dessertPP;
+  const total = cnt * pricePerPerson;
+
+  // Дата с годом
+  let dateFull = date;
+  const dotCount = (date.match(/\./g) || []).length;
+  if (dotCount === 1) {
+    dateFull = date + '.' + new Date().getFullYear();
+  }
+
+  // Форма оплаты: "?" -> пусто
+  const payOut = (pay === '?') ? '' : pay;
+
+  // TSV строка: 10 колонок
+  const cols = [
+    dateFull,           // Дата
+    firm,               // Тур оператор
+    time,               // Время
+    cnt || '',          // Кол-во
+    total || '',        // Сумма
+    pricePerPerson || '',// Руб. с человека
+    '',                 // Оплачен (заполни вручную)
+    payOut,             // Форма оплаты
+    '',                 // Комментарий (заполни вручную)
+    ''                  // Допы (заполни вручную)
+  ];
+  const tsv = cols.join('\t');
+
+  const showPreview = 'Дата: ' + (dateFull || '—') + '\n' +
+    'Туроператор: ' + (firm || '—') + '\n' +
+    'Время: ' + (time || '—') + '\n' +
+    'Кол-во: ' + (cnt || '—') + '\n' +
+    'Сумма: ' + (total || '—') + '\n' +
+    'Руб./чел: ' + (pricePerPerson || '—') + '\n' +
+    'Форма оплаты: ' + (payOut || '—') + '\n' +
+    'Оплачен, Комментарий, Допы: пустые (заполни в Excel)';
+
+  const copyFunc = (text) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise((resolve, reject) => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        resolve();
+      } catch (e) { reject(e); }
+      document.body.removeChild(ta);
+    });
+  };
+
+  copyFunc(tsv).then(() => {
+    alert('📋 Строка для Excel скопирована!\n\n' + showPreview + '\n\nТеперь: открой Excel → встань на нужную ячейку в колонке «Дата» → Ctrl+V');
+  }).catch(() => {
+    alert('Не удалось скопировать. Попробуй ещё раз или вручную: ' + tsv);
+  });
+}
+/* ==================================== */
 
 function parseIncomingText() {
   const status = document.getElementById('parse-status');
   status.textContent = '';
   const warnings = [];
-  // Новая заявка — сбрасываем ручной порядок
   manualSortDone = false;
   try {
     const raw = document.getElementById('ai-input').value;
     if (!raw.trim()) { alert('Сначала вставь текст заявки.'); return; }
     const flat = raw.replace(/\s+/g,' ').trim();
     const textNorm = normStr(flat);
+
+    const detectedFirm = findFirmInText(textNorm);
+    document.getElementById('firm').value = detectedFirm;
+    if (!detectedFirm) warnings.push('турфирма');
 
     let dateStr = '';
     let m = flat.match(/дата\s*:?\s*(\d{1,2}[.\-\/]\d{1,2}(?:[.\-\/]\d{2,4})?)/i);
@@ -482,7 +614,6 @@ function parseIncomingText() {
       list = result;
     }
 
-    // Сортируем список по типу блюда — важно для лога и для случая, когда всё в одной вкладке
     list.sort((a, b) => dishOrder(a.name) - dishOrder(b.name));
 
     const log = [];
@@ -490,7 +621,7 @@ function parseIncomingText() {
     recalc();
 
     let statusStr = list.length === 0 ? '⚠ Ничего не найдено.' : '✓ Найдено ' + list.length + ': ' + log.join(', ');
-    if (warnings.length > 0) statusStr += ' | ⚠ ' + warnings.join(', ');
+    if (warnings.length > 0) statusStr += ' | ⚠ не найдено в тексте: ' + warnings.join(', ');
     status.style.color = (list.length === 0 || warnings.length > 0) ? '#e67e22' : '#27ae60';
     status.textContent = statusStr;
   } catch (e) {
@@ -524,7 +655,7 @@ function addRowWithData(cat, selectedName, weight) {
   row.className = 'row';
   row.setAttribute('data-cat', cat);
   const currentCount = document.getElementById('cntTotal').value || '';
-  row.innerHTML = '<span class="drag-handle" title="Перетащите, чтобы изменить порядок">⋮⋮</span>'
+  row.innerHTML = '<span class="drag-handle" title="Перетащите">⋮⋮</span>'
     + '<select onchange="pick(this)">'+buildOptions(cat, selectedName)+'</select>'
     + '<input type="text" placeholder="Выход" class="w" value="'+(weight||'')+'">'
     + '<input type="number" placeholder="Кол-во" class="q" value="'+currentCount+'">'
@@ -557,6 +688,7 @@ function recalc() {
   document.getElementById('total').value = extraSum > 0
     ? fmtNum(setSum) + '+' + fmtNum(extraSum) + ' =' + fmtNum(setSum + extraSum)
     : fmtNum(setSum);
+  updateAccMsg();
 }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -573,7 +705,6 @@ function buildBlankHtml() {
   const totalExtraPP = manualExtra + dessertPP;
   const priceText = totalExtraPP > 0 ? (base+'+'+totalExtraPP+' рублей') : (base+' рублей');
 
-  // Собираем ВСЕ строки из всех вкладок в правильном порядке
   const orderedRows = collectRowsSorted();
 
   let rowsHtml = '';
