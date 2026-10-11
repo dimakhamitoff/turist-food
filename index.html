@@ -20,7 +20,15 @@
   .tab.active { background: #3498db; color: white; }
   .pane { display: none; }
   .pane.active { display: block; }
-  .row { display: grid; grid-template-columns: 1fr 90px 90px 40px; gap: 8px; margin-bottom: 6px; align-items: center; }
+  .row { display: grid; grid-template-columns: 24px 1fr 90px 90px 40px; gap: 8px; margin-bottom: 6px; align-items: center; }
+  .drag-handle {
+    cursor: grab; text-align: center; color: #aaa; font-size: 16px; font-weight: bold;
+    user-select: none; -webkit-user-select: none; padding: 8px 0;
+    border-radius: 3px; transition: background 0.15s, color 0.15s;
+  }
+  .drag-handle:hover { background: #f0f0f0; color: #555; }
+  .drag-handle:active { cursor: grabbing; }
+  .row.dragging { opacity: 0.4; background: #f5faff; }
   .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
   .add { background: #2ecc71; color: #fff; margin-top: 4px; }
   .del { background: #e74c3c; color: #fff; }
@@ -162,7 +170,7 @@ const DB = {
     {n:"Блины со сметаной (390)", w:"130", a:["детские блины со сметаной"]},
     {n:"Омлет (390)", w:"110", a:["детский омлет"]},
     {n:"Чай пакетированный (390)", w:"150", a:["детский чай"]},
-    {n:"Салат из свежих огурцов и помидоров с маслом (680)", w:"120", a:["детский салат из огурцов"]},
+    {n:"Салат из свежих огурцов и помидоров с маслом (680)", w:"120", a:["детский салат из огурцов","салат из свежих огурцов и помидоров с маслом"]},
     {n:"Суп с вермишелью и курицей (680)", w:"250", a:["детский суп с вермишелью"]},
     {n:"Картофель отварной (680)", w:"150", a:["детский картофель отварной"]},
     {n:"Котлета по-домашнему с маслом (680)", w:"75", a:["детская котлета по-домашнему"]},
@@ -196,6 +204,10 @@ const DB = {
 };
 Object.keys(DB).forEach(k => DB[k].sort((a,b) => a.n.localeCompare(b.n, 'ru')));
 
+/* ========= ФЛАГ РУЧНОГО ПОРЯДКА ========= */
+let manualSortDone = false;
+/* ======================================== */
+
 function normStr(s) {
   return String(s).toLowerCase().replace(/ё/g,'е').replace(/[«»"'`()\-–—.,:;!?\/\\\[\]]/g,' ').replace(/\s+/g,' ').trim();
 }
@@ -222,17 +234,104 @@ function dessertPerPersonTotal() {
   return s;
 }
 
+/* ========= КЛАССИФИКАЦИЯ БЛЮД ДЛЯ АВТО-ПОРЯДКА ========= */
+function dishOrder(name) {
+  let n = normStr(cleanDishName(name));
+  n = n.replace(/^детский\s+/, '').replace(/^детское\s+/, '').replace(/^детская\s+/, '');
+
+  if (/эклер|медовик|опера|брауни|прага|бархат|настойк|сет из/.test(n)) return 90;
+  if (/^салат|^винегрет|^оливье|разсол/.test(n)) return 10;
+  if (/рулет из курицы|^студень|капуста квашеная|^курник/.test(n)) return 15;
+  if (/^суп|^борщ|^щи|^солянка|^уха|^окрошка|^рассольник|похлебка|^калья/.test(n)) return 20;
+  if (/^картофель|^картошка|картофельное пюре|^пюре|^рис |^рис$|^рагу|^капуста тушеная|^греча|^спагетти/.test(n)) return 40;
+  if (/котлет|зраз|филе|фрикасе|фрикассе|гуляш|бефстроганов|свинин|телятин|биточ|шницель|бризоль|судак|тельное|пожарск|жарен|запечен/.test(n)) return 30;
+  if (/пирожок/.test(n)) return 50;
+  if (/хлеб|корзин/.test(n)) return 60;
+  if (/^чай|^морс|^кофе|напит/.test(n)) return 70;
+  return 35;
+}
+
+/* Собирает все строки из всех вкладок и сортирует их для бланка */
+function collectRowsSorted() {
+  const all = Array.from(document.querySelectorAll('.row'));
+  if (manualSortDone) return all; // пользователь сам расставил — не трогаем
+  // Стабильная сортировка: строки без имени — в конец
+  return all.slice().sort((a, b) => {
+    const na = a.querySelector('select').value;
+    const nb = b.querySelector('select').value;
+    if (!na && !nb) return 0;
+    if (!na) return 1;
+    if (!nb) return -1;
+    return dishOrder(na) - dishOrder(nb);
+  });
+}
+
+/* ========= ПЕРЕТАСКИВАНИЕ СТРОК ========= */
+let draggingRow = null;
+let dragStarted = false;
+
+function makeDraggable(row) {
+  const handle = row.querySelector('.drag-handle');
+  if (!handle) return;
+
+  handle.addEventListener('mousedown', () => {
+    row.draggable = true;
+    dragStarted = false;
+  });
+
+  handle.addEventListener('mouseup', () => {
+    setTimeout(() => {
+      if (!dragStarted) row.draggable = false;
+    }, 50);
+  });
+
+  row.addEventListener('dragstart', (e) => {
+    dragStarted = true;
+    draggingRow = row;
+    row.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', ''); } catch(err) {}
+  });
+
+  row.addEventListener('dragend', () => {
+    draggingRow = null;
+    dragStarted = false;
+    row.draggable = false;
+    row.classList.remove('dragging');
+    // С этого момента порядок считается «ручным» — автосортировка отключается
+    manualSortDone = true;
+  });
+
+  row.addEventListener('dragover', (e) => {
+    if (!draggingRow || draggingRow === row) return;
+    if (draggingRow.parentNode !== row.parentNode) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = row.getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    if (e.clientY < mid) {
+      row.parentNode.insertBefore(draggingRow, row);
+    } else {
+      row.parentNode.insertBefore(draggingRow, row.nextSibling);
+    }
+  });
+
+  row.addEventListener('drop', (e) => { e.preventDefault(); });
+}
+/* ======================================== */
+
 function parseIncomingText() {
   const status = document.getElementById('parse-status');
   status.textContent = '';
   const warnings = [];
+  // Новая заявка — сбрасываем ручной порядок
+  manualSortDone = false;
   try {
     const raw = document.getElementById('ai-input').value;
     if (!raw.trim()) { alert('Сначала вставь текст заявки.'); return; }
     const flat = raw.replace(/\s+/g,' ').trim();
     const textNorm = normStr(flat);
 
-    // ДАТА
     let dateStr = '';
     let m = flat.match(/дата\s*:?\s*(\d{1,2}[.\-\/]\d{1,2}(?:[.\-\/]\d{2,4})?)/i);
     if (m) dateStr = m[1];
@@ -251,11 +350,9 @@ function parseIncomingText() {
     }
     if (dateStr) document.getElementById('date').value = dateStr;
 
-    // ВРЕМЯ
     m = flat.match(/\b(\d{1,2}:\d{2})\b/);
     if (m) document.getElementById('time').value = m[1];
 
-    // ОПЛАТА
     m = flat.match(/оплата\s*:?\s*([^\s,.;]+)/i);
     if (m) {
       let pay = m[1].toLowerCase().trim().replace(/\\/g,'/');
@@ -265,7 +362,6 @@ function parseIncomingText() {
       document.getElementById('payment').value = '?';
     }
 
-    // КОЛИЧЕСТВО
     let total = 0;
     let cntTextStr = '';
     const staff = (/гид/i.test(flat) ? 1 : 0) + (/водител/i.test(flat) ? 1 : 0);
@@ -310,7 +406,6 @@ function parseIncomingText() {
       document.getElementById('cntText').value = cntTextStr || '';
     }
 
-    // ПОИСК БЛЮД
     document.querySelectorAll('.row').forEach(r => r.remove());
     const fullMatches = [], fullNames = [];
     for (const cat of Object.keys(DB)) {
@@ -356,13 +451,11 @@ function parseIncomingText() {
       if (!isInside) list.push(norm[i]);
     }
 
-    // ДОМИНИРУЮЩАЯ КАТЕГОРИЯ
     const catCount = {};
     list.forEach(d => { if (d.cat !== 'add') catCount[d.cat] = (catCount[d.cat]||0) + 1; });
     let dom = null, domCount = 0;
     for (const c in catCount) if (catCount[c] > domCount) { domCount = catCount[c]; dom = c; }
 
-    // АВТО-ПОДСТАНОВКА ЦЕНЫ
     if (dom === 'trap' || /трапез/i.test(flat)) {
       document.getElementById('pBase').value = 1850;
     } else if (dom === 'main') {
@@ -371,7 +464,6 @@ function parseIncomingText() {
       }
     }
 
-    // ЗАМЕНА СПОРНЫХ БЛЮД НА ВЕРСИЮ ИЗ ДОМИНИРУЮЩЕЙ КАТЕГОРИИ
     if (dom && domCount >= 2) {
       const result = [];
       for (const item of list) {
@@ -389,6 +481,9 @@ function parseIncomingText() {
       }
       list = result;
     }
+
+    // Сортируем список по типу блюда — важно для лога и для случая, когда всё в одной вкладке
+    list.sort((a, b) => dishOrder(a.name) - dishOrder(b.name));
 
     const log = [];
     list.forEach(d => { addRowWithData(d.cat, d.name, d.w); log.push(cleanDishName(d.name)); });
@@ -429,11 +524,13 @@ function addRowWithData(cat, selectedName, weight) {
   row.className = 'row';
   row.setAttribute('data-cat', cat);
   const currentCount = document.getElementById('cntTotal').value || '';
-  row.innerHTML = '<select onchange="pick(this)">'+buildOptions(cat, selectedName)+'</select>'
+  row.innerHTML = '<span class="drag-handle" title="Перетащите, чтобы изменить порядок">⋮⋮</span>'
+    + '<select onchange="pick(this)">'+buildOptions(cat, selectedName)+'</select>'
     + '<input type="text" placeholder="Выход" class="w" value="'+(weight||'')+'">'
     + '<input type="number" placeholder="Кол-во" class="q" value="'+currentCount+'">'
     + '<button class="btn del" onclick="this.parentNode.remove(); recalc()">✕</button>';
   box.appendChild(row);
+  makeDraggable(row);
   recalc();
 }
 function pick(sel) {
@@ -476,8 +573,11 @@ function buildBlankHtml() {
   const totalExtraPP = manualExtra + dessertPP;
   const priceText = totalExtraPP > 0 ? (base+'+'+totalExtraPP+' рублей') : (base+' рублей');
 
+  // Собираем ВСЕ строки из всех вкладок в правильном порядке
+  const orderedRows = collectRowsSorted();
+
   let rowsHtml = '';
-  document.querySelectorAll('.row').forEach(r => {
+  orderedRows.forEach(r => {
     const name = r.querySelector('select').value;
     const w = r.querySelector('.w').value;
     const q = r.querySelector('.q').value;
